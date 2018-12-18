@@ -7,7 +7,6 @@ import qualified Data.ByteString.Base16
 import qualified Data.Attoparsec.ByteString as DAB
 import Data.Attoparsec.ByteString
 import Data.Attoparsec.Binary
---import Control.Applicative
 import Control.Monad(unless)
 import Data.IP
 import Data.Bits
@@ -19,8 +18,6 @@ instance Show HexByteString where
     show (HexByteString bs) = toHex bs
 
 toHex = Char8.unpack . Data.ByteString.Base16.encode
---toHex' = toHex . BS.toStrict
-
 
 data MRTRecord = MRTPeerIndexTable { tdBGPID :: Word32 , tdViewName :: String, peerTable :: [MRTPeer] } 
                  | RIBIPV4Unicast { reSequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: IPv4 , reRIB :: [RIBEntry] }
@@ -52,12 +49,12 @@ rawMRTParser = do
         --(13,1) -> parseMRTPeerIndexTable
         --(13,2) -> parseRIBIPV4Unicast
         (16,4) -> parseBGP4MPMessageAS4 l
-        --(16,5) -> parseBGP4MPStateChangeAS4
+        (16,5) -> parseBGP4MPStateChangeAS4
         (_,_)  -> do m  <- DAB.take (fromIntegral l )
                      return $ MRTUnimplmented ts t st (HexByteString m)
 
 parseIPv4 :: Parser IP
-parseIPv4 = fmap (IPv4 . fromHostAddress) anyWord32be
+parseIPv4 = fmap (IPv4 . fromHostAddress) anyWord32le
 
 parseIPv6 :: Parser IP
 parseIPv6 = do
