@@ -20,6 +20,12 @@ data MRTUnimplmented = MRTUnimplmented { xTimestamp :: Word32 , xType, xSubtype 
 instance Show MRTUnimplmented where
     show (MRTUnimplmented ts t st m) = "MRTUnimplmented { ts: " ++ show ts ++ " type: " ++ show t ++ " subtype: " ++ show st ++ " length: " ++ show (BS.length m)
 
+mrtParse :: BS.ByteString -> [MRTUnimplmented]
+mrtParse bs = mrtParse' (parse' bs) where
+    parse' bs = feed (parse rawMRTParse bs) BS.empty
+    mrtParse' (Done _ r) = r
+    mrtParse' (Fail _ sx s) = fail $ show (s,sx)
+
 rawMRTParse :: Parser [MRTUnimplmented]
 rawMRTParse = many1 rawMRTParser
 
