@@ -8,8 +8,8 @@ import qualified Data.Attoparsec.ByteString as DAB
 import Data.Attoparsec.ByteString
 import Data.Attoparsec.Binary
 --import Control.Applicative
---import Control.Monad(when)
---import Data.IP
+import Control.Monad(unless)
+import Data.IP
 import Data.Bits
 import Data.Word 
 
@@ -23,13 +23,13 @@ toHex = Char8.unpack . Data.ByteString.Base16.encode
 
 
 data MRTRecord = MRTPeerIndexTable { tdBGPID :: Word32 , tdViewName :: String, peerTable :: [MRTPeer] } 
-                 | RIBIPV4Unicast { reSequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: Word32 , reRIB :: [RIBEntry] }
+                 | RIBIPV4Unicast { reSequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: IPv4 , reRIB :: [RIBEntry] }
                  | MRTUnimplmented { xTimestamp :: Word32 , xType, xSubtype :: Word16 , xMessage :: HexByteString }
-                 | BGP4MPMessageAS4 { msgAS4PeerAS,msgAS4LocalAS,msgAS4PeerIP,msgAS4LocalIP :: Word32, msgAS4Message :: BS.ByteString } -- this is an IPv4 only object
-                 | BGP4MPStateChangeAS4 { scAS4PeerAS,scAS4LocalAS,scAS4PeerIP,scAS4LocalIP :: Word32, scOldState, scNewState:: BGP4MPState } -- this is an IPv4 only object
+                 | BGP4MPMessageAS4 { msgAS4PeerAS,msgAS4LocalAS :: Word32,msgAS4PeerIP,msgAS4LocalIP :: IP, msgAS4Message :: BS.ByteString }
+                 | BGP4MPStateChangeAS4 { scAS4PeerAS,scAS4LocalAS :: Word32,scAS4PeerIP,scAS4LocalIP :: IP, scOldState, scNewState:: BGP4MPState }
                  deriving Show
 
-data MRTPeer = MRTPeer { mrtPeerBGPID , mrtPeerASN , mrtPeerIPAddress :: Word32 } deriving Show
+data MRTPeer = MRTPeer { mrtPeerBGPID , mrtPeerASN :: Word32, mrtPeerIPAddress :: IP } deriving Show
 data RIBEntry = RIBEntry { rePeerIndex :: Word16 , reOriginatedTime :: Word32 , reAttributes :: BS.ByteString } deriving Show
 data BGP4MPState = BGP4MPIdle | BGP4MPConnect | BGP4MPActive | BGP4MPOpenSent | BGP4MPOpenConfirm | BGP4MPEstablished deriving Show
 
@@ -48,17 +48,26 @@ rawMRTParser = do
     t  <- anyWord16be
     st <- anyWord16be
     l  <- anyWord32be
-    -- m  <- take (fromIntegral l )
     case (t,st) of
-        (13,1) -> parseMRTPeerIndexTable
-        (13,2) -> parseRIBIPV4Unicast
+        --(13,1) -> parseMRTPeerIndexTable
+        --(13,2) -> parseRIBIPV4Unicast
         (16,4) -> parseBGP4MPMessageAS4 l
-        (16,5) -> parseBGP4MPStateChangeAS4
+        --(16,5) -> parseBGP4MPStateChangeAS4
         (_,_)  -> do m  <- DAB.take (fromIntegral l )
                      return $ MRTUnimplmented ts t st (HexByteString m)
 
+parseIPv4 :: Parser IP
+parseIPv4 = fmap (IPv4 . fromHostAddress) anyWord32be
+
+parseIPv6 :: Parser IP
+parseIPv6 = do
+    b1 <- anyWord32be
+    b2 <- anyWord32be
+    b3 <- anyWord32be
+    b4 <- anyWord32be
+    return $ IPv6 $ fromHostAddress6 (b1,b2,b3,b4)
+
 parseMRTPeerIndexTable :: Parser MRTRecord
---parseMRTPeerIndexTable m = return $ MRTPeerIndexTable 0 "" []
 parseMRTPeerIndexTable = do
     bgpid <- anyWord32be
     l <- anyWord16be
@@ -68,11 +77,13 @@ parseMRTPeerIndexTable = do
     return $ MRTPeerIndexTable bgpid (Char8.unpack name) px
     where
     parseMRTPeer = do
-        word8 0x2 -- IPv4 + AS4
-        bgpid <- anyWord32be
-        ip    <- anyWord32be
-        as   <- anyWord32be
-        return $ MRTPeer bgpid ip as
+        peerType <- anyWord8
+        let ipV6 = testBit peerType 0
+            as4 = testBit peerType 1
+        mrtPeerBGPID <- anyWord32be
+        mrtPeerIPAddress <- if ipV6 then parseIPv6 else parseIPv4
+        mrtPeerASN <- if as4 then anyWord32be else fmap fromIntegral anyWord16be
+        return $ MRTPeer{..}
     
 --parseRIBIPV4Unicast = return $ RIBIPV4Unicast 0 0 0 []
 parseRIBIPV4Unicast :: Parser MRTRecord
@@ -92,7 +103,7 @@ parseRIBIPV4Unicast = do
 
 
 -- shamelessly copied from my zserv code for zvPrefixIPv4Parser
-parsePrefix :: Parser (Word8,Word32) 
+parsePrefix :: Parser (Word8,IPv4) 
 parsePrefix = do
     plen <- anyWord8
     pfx <- if | plen == 0  -> return 0
@@ -100,7 +111,7 @@ parsePrefix = do
               | plen < 17  -> readPrefix2Byte
               | plen < 25  -> readPrefix3Byte
               | plen < 33  -> readPrefix4Byte
-    return (plen,pfx)
+    return (plen, fromHostAddress pfx)
     where
         readPrefix1Byte = do
             b0 <- anyWord8
@@ -119,10 +130,15 @@ parseBGP4MPMessageAS4 l = do
         msgAS4PeerAS <- anyWord32be
         msgAS4LocalAS <- anyWord32be
         ifIndex <- anyWord16be
-        word16be 0x1 -- IPv4 (IPv6 == 2)
-        msgAS4PeerIP <- anyWord32be
-        msgAS4LocalIP <- anyWord32be
-        msgAS4Message <- DAB.take (fromIntegral l - 20 )
+        afi <- anyWord16be
+        let isV6 = (afi == 2)
+        msgAS4PeerIP <- if isV6 then parseIPv6 else parseIPv4
+        msgAS4LocalIP <- if isV6 then parseIPv6 else parseIPv4
+        bgpMarker <- DAB.take 16
+        unless ( bgpMarker == (BS.replicate 16 0xff) ) (fail "BGP marker synchronisation error")
+        bgpLength <- anyWord16be
+        -- unless ( fromIntegral l == 38 + bgpLength ) (fail $ "BGP length error " ++ show l ++ " " ++ show bgpLength)
+        msgAS4Message <- DAB.take (fromIntegral bgpLength - 18 )
         return $ BGP4MPMessageAS4{..}  
 
 
@@ -131,13 +147,14 @@ parseBGP4MPStateChangeAS4 = do
         scAS4PeerAS <- anyWord32be
         scAS4LocalAS <- anyWord32be
         ifIndex <- anyWord16be
-        word16be 0x1 -- IPv4 (IPv6 == 2)
-        scAS4PeerIP <- anyWord32be
-        scAS4LocalIP <- anyWord32be
+        afi <- anyWord16be
+        let isV6 = (afi == 2)
+        scAS4PeerIP <- if isV6 then parseIPv6 else parseIPv4
+        scAS4LocalIP <- if isV6 then parseIPv6 else parseIPv4
         scOldState <- fmap toBGP4MPState anyWord16be
         scNewState <- fmap toBGP4MPState anyWord16be
         return $ BGP4MPStateChangeAS4{..}  
-                 -- BGP4MPStateChangeAS4 { scAS4PeerAS , scAS4LocalAS , scAS4PeerIP , scAS4LocalIP :: Word32 ,  scOldState ,  scNewState:: BGP4MPState } -- this is an IPv4 only object
+
 toBGP4MPState :: Word16 -> BGP4MPState
 toBGP4MPState 1 = BGP4MPIdle
 toBGP4MPState 2 = BGP4MPConnect
@@ -145,4 +162,5 @@ toBGP4MPState 3 = BGP4MPActive
 toBGP4MPState 4 = BGP4MPOpenSent
 toBGP4MPState 5 = BGP4MPOpenConfirm
 toBGP4MPState 6 = BGP4MPEstablished
+--toBGP4MPState _ = fail "invalid BGP FSM state"
 
