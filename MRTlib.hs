@@ -12,6 +12,13 @@ import Data.Word
 
 -- Records which the parser will generate......
 
+data MRTRecord = MRTPeerIndexTable { tdBGPID :: Word32 , tdViewName :: String, peerTable :: [MRTPeer] } 
+                 | RIBIPV4Unicast { reSequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: Word32 , reRIB :: [RIBEntry] }
+                 | MRTUnimplmented { xTimestamp :: Word32 , xType, xSubtype :: Word16 , xMessage :: BS.ByteString }
+                 deriving Show
+data MRTPeer = MRTPeer { mrtPeerBGPIP , mrtPeerASN , mrtPeerIPAddress :: Word32 } deriving Show
+data RIBEntry = RIBEntry { rePeerIndex :: Word16 , reOriginatedTime :: Word32 , reAttributes :: BS.ByteString } deriving Show
+{-
 data MRTPeerIndexTable = MRTPeerIndexTable { tdBGPID :: Word32 , tdViewName :: String, peerTable :: [MRTPeer] } 
 data MRTPeer = MRTPeer { mrtPeerBGPIP , mrtPeerASN , mrtPeerIPAddress :: Word32 }
 data RIBIPV4Unicast = RIBIPV4Unicast { reSequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: Word32 , reRIB :: [RIBEntry] }
@@ -19,21 +26,28 @@ data RIBEntry = RIBEntry { rePeerIndex :: Word16 , reOriginatedTime :: Word32 , 
 data MRTUnimplmented = MRTUnimplmented { xTimestamp :: Word32 , xType, xSubtype :: Word16 , xMessage :: BS.ByteString }
 instance Show MRTUnimplmented where
     show (MRTUnimplmented ts t st m) = "MRTUnimplmented { ts: " ++ show ts ++ " type: " ++ show t ++ " subtype: " ++ show st ++ " length: " ++ show (BS.length m)
+-}
 
-mrtParse :: BS.ByteString -> [MRTUnimplmented]
+mrtParse :: BS.ByteString -> [MRTRecord]
 mrtParse bs = mrtParse' (parse' bs) where
     parse' bs = feed (parse rawMRTParse bs) BS.empty
     mrtParse' (Done _ r) = r
     mrtParse' (Fail _ sx s) = fail $ show (s,sx)
 
-rawMRTParse :: Parser [MRTUnimplmented]
+rawMRTParse :: Parser [MRTRecord]
 rawMRTParse = many1 rawMRTParser
 
-rawMRTParser :: Parser MRTUnimplmented
+rawMRTParser :: Parser MRTRecord
 rawMRTParser = do
     ts <- anyWord32be
     t  <- anyWord16be
     st <- anyWord16be
     l  <- anyWord32be
     m  <- DAB.take (fromIntegral l )
-    return $ MRTUnimplmented ts t st m
+    case (t,st) of
+        (13,1) -> parseMRTPeerIndexTable m
+        (13,2) -> parseRIBIPV4Unicast m
+        (_,_)  -> return $ MRTUnimplmented ts t st m
+
+parseMRTPeerIndexTable m = return $ MRTPeerIndexTable 0 "" []
+parseRIBIPV4Unicast m = return $ RIBIPV4Unicast 0 0 0 []
