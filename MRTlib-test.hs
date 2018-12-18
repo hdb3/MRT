@@ -1,5 +1,4 @@
 module Main where
-import Data.Attoparsec.ByteString
 import qualified Data.ByteString as BS
 import Control.Monad(mapM_)
 import MRTlib
