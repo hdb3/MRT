@@ -45,6 +45,8 @@ data MRTRecord = MRTPeerIndexTable { tdBGPID :: BGPid , tdViewName :: String, pe
                  | MRTUnimplemented { xTimestamp :: Timestamp , xType, xSubtype :: Word16 , xMessage :: HexByteString }
                  | BGP4MPMessageAS4 { msgAS4PeerAS,msgAS4LocalAS :: AS4 ,msgAS4PeerIP,msgAS4LocalIP :: IP, msgAS4Message :: BGPMessage }
                  | BGP4MPStateChangeAS4 { scAS4PeerAS,scAS4LocalAS :: AS4 ,scAS4PeerIP,scAS4LocalIP :: IP, scOldState, scNewState:: BGP4MPState }
+                 | RIBv1IPv4 { r1v4ViewNumber, r1v4SeqNumber :: Word16, r1v4Prefix :: IPv4 , r1v4Length :: Word8, r1v4Timestamp :: Timestamp , r1v4PeerAddress :: IPv4, r1v4PeerAS :: AS4, r1v4Attributes :: BGPAttributes }
+                 | RIBv1IPv6 { r1v6ViewNumber, r1v6SeqNumber :: Word16, r1v6Prefix :: IPv6 , r1v6Length :: Word8, r1v6Timestamp :: Timestamp , r1v6PeerAddress :: IPv6, r1v6PeerAS :: AS4, r1v6Attributes :: BGPAttributes }
                  deriving Show
 
 data MRTPeer = MRTPeer { mrtPeerBGPID :: BGPid, mrtPeerASN :: AS4 , mrtPeerIPAddress :: IP } deriving Show
@@ -68,6 +70,8 @@ rawMRTParser = do
     st <- anyWord16be
     l  <- anyWord32be
     case (t,st) of
+        (12,1) -> parseRIBv1IPv4
+        (12,2) -> parseRIBv1IPv6
         (13,1) -> parseMRTPeerIndexTable
         (13,2) -> parseRIBIPV4Unicast
         (13,4) -> parseRIBIPV6Unicast
@@ -123,6 +127,32 @@ parseMRTPeerIndexTable = do
         mrtPeerIPAddress <- if isV6 then parseIPv6 else parseIPv4
         mrtPeerASN <- if isAS4 then as4 else as2
         return MRTPeer{..}
+
+parseRIBv1IPv4 :: Parser MRTRecord
+parseRIBv1IPv4 = do
+    r1v4ViewNumber <- anyWord16be
+    r1v4SeqNumber <- anyWord16be
+    r1v4Prefix <- ipv4
+    r1v4Length <- anyWord8
+    _ <- anyWord8
+    r1v4Timestamp <- timestamp
+    r1v4PeerAddress <- ipv4
+    r1v4PeerAS <- as2
+    r1v4Attributes <- bgpAttributes
+    return RIBv1IPv4{..}
+
+parseRIBv1IPv6 :: Parser MRTRecord
+parseRIBv1IPv6 = do
+    r1v6ViewNumber <- anyWord16be
+    r1v6SeqNumber <- anyWord16be
+    r1v6Prefix <- ipv6
+    r1v6Length <- anyWord8
+    _ <- anyWord8
+    r1v6Timestamp <- timestamp
+    r1v6PeerAddress <- ipv6
+    r1v6PeerAS <- as2
+    r1v6Attributes <- bgpAttributes
+    return RIBv1IPv6{..}
 
 parseRIBIPV4Unicast :: Parser MRTRecord
 parseRIBIPV4Unicast = do
