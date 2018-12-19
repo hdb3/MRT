@@ -5,7 +5,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Base16
 import qualified Data.Attoparsec.ByteString as DAB
-import Data.Attoparsec.ByteString
+import Data.Attoparsec.ByteString(Parser,anyWord8,count)
 import Data.Attoparsec.Binary
 import Control.Monad(unless)
 import Data.IP hiding(ipv4,ipv6)
@@ -37,10 +37,12 @@ instance Show BGPid where
     show (BGPid ip) = show ip
 
 toHex = Char8.unpack . Data.ByteString.Base16.encode
+fromHex = fst . Data.ByteString.Base16.decode
 
 data MRTRecord = MRTPeerIndexTable { tdBGPID :: BGPid , tdViewName :: String, peerTable :: [MRTPeer] } 
-                 | RIBIPV4Unicast { reSequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: IPv4 , reRIB :: [RIBEntry] }
-                 | MRTUnimplmented { xTimestamp :: Timestamp , xType, xSubtype :: Word16 , xMessage :: HexByteString }
+                 | RIBIPV4Unicast { re4SequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: IPv4 , re4RIB :: [RIBEntry] }
+                 | RIBIPV6Unicast { re6SequenceNumber :: Word32 , re6Length :: Word8 , re6Address :: IPv6 , re6RIB :: [RIBEntry] }
+                 | MRTUnimplemented { xTimestamp :: Timestamp , xType, xSubtype :: Word16 , xMessage :: HexByteString }
                  | BGP4MPMessageAS4 { msgAS4PeerAS,msgAS4LocalAS :: AS4 ,msgAS4PeerIP,msgAS4LocalIP :: IP, msgAS4Message :: BGPMessage }
                  | BGP4MPStateChangeAS4 { scAS4PeerAS,scAS4LocalAS :: AS4 ,scAS4PeerIP,scAS4LocalIP :: IP, scOldState, scNewState:: BGP4MPState }
                  deriving Show
@@ -51,13 +53,13 @@ data BGP4MPState = BGP4MPIdle | BGP4MPConnect | BGP4MPActive | BGP4MPOpenSent | 
 
 mrtParse :: BS.ByteString -> [MRTRecord]
 mrtParse bs = mrtParse' (parse' bs) where
-    parse' bs' = feed (parse rawMRTParse bs') BS.empty
-    mrtParse' (Done _ r) = r
-    mrtParse' (Fail _ sx s) = fail $ show (s,sx)
-    mrtParse' (Partial _ ) = fail "Partial unexpected!"
+    parse' bs' = DAB.feed (DAB.parse rawMRTParse bs') BS.empty
+    mrtParse' (DAB.Done _ r) = r
+    mrtParse' (DAB.Fail _ sx s) = error $ show (s,sx)
+    mrtParse' (DAB.Partial _ ) = error "Partial unexpected!"
 
 rawMRTParse :: Parser [MRTRecord]
-rawMRTParse = many1 rawMRTParser
+rawMRTParse = DAB.many1 rawMRTParser
 
 rawMRTParser :: Parser MRTRecord
 rawMRTParser = do
@@ -68,10 +70,11 @@ rawMRTParser = do
     case (t,st) of
         (13,1) -> parseMRTPeerIndexTable
         (13,2) -> parseRIBIPV4Unicast
+        (13,4) -> parseRIBIPV6Unicast
         (16,4) -> parseBGP4MPMessageAS4
         (16,5) -> parseBGP4MPStateChangeAS4
         (_,_)  -> do m  <- DAB.take (fromIntegral l )
-                     return $ MRTUnimplmented ts t st (HexByteString m)
+                     return $ MRTUnimplemented ts t st (HexByteString m)
 
 bs16 = do
     l <- anyWord16be
@@ -120,16 +123,24 @@ parseMRTPeerIndexTable = do
         mrtPeerIPAddress <- if isV6 then parseIPv6 else parseIPv4
         mrtPeerASN <- if isAS4 then as4 else as2
         return MRTPeer{..}
-    
+
 parseRIBIPV4Unicast :: Parser MRTRecord
 parseRIBIPV4Unicast = do
-    reSequenceNumber <- anyWord32be
-    (re4Length,re4Address) <- parsePrefix
-    c <- anyWord16be
-    reRIB <- count (fromIntegral c) parseRIBEntry
-    -- return $ RIBIPV4Unicast sn plen pfx peers 
-    -- RIBIPV4Unicast { reSequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: IPv4 , reRIB :: [RIBEntry] }
+    re4SequenceNumber <- anyWord32be
+    (re4Length,re4Address) <- parsePrefixV4
+    re4RIB <- parseRIB
     return RIBIPV4Unicast{..}
+
+parseRIBIPV6Unicast :: Parser MRTRecord
+parseRIBIPV6Unicast = do
+    re6SequenceNumber <- anyWord32be
+    (re6Length,re6Address) <- parsePrefixV6
+    re6RIB <- parseRIB
+    return RIBIPV6Unicast{..}
+
+parseRIB = do
+    c <- fmap fromIntegral anyWord16be
+    count c parseRIBEntry
     where
     parseRIBEntry = do
         rePeerIndex <- anyWord16be
@@ -138,8 +149,8 @@ parseRIBIPV4Unicast = do
         return RIBEntry{..}
 
 -- shamelessly copied from my zserv code for zvPrefixIPv4Parser
-parsePrefix :: Parser (Word8,IPv4) 
-parsePrefix = do
+parsePrefixV4 :: Parser (Word8,IPv4) 
+parsePrefixV4 = do
     plen <- anyWord8
     pfx <- if | plen == 0  -> return 0
               | plen < 9   -> readPrefix1Byte
@@ -159,6 +170,14 @@ parsePrefix = do
             b1 <- anyWord8
             return (unsafeShiftL (fromIntegral b1) 8 .|. unsafeShiftL (fromIntegral b0) 16)
         readPrefix4Byte = anyWord32be
+
+parsePrefixV6 :: Parser (Word8,IPv6)
+parsePrefixV6 = do
+    pLen <- anyWord8
+    let bytePLen = ((fromIntegral pLen - 1) `div` 8) + 1 -- DANGER Will Robinson (-ve arithmetic on unsigned words will wrap around badly, so rearrange at your peril...)
+    bytes <- count bytePLen anyWord8
+    let extendedBytes = bytes ++ replicate (16-bytePLen) 0
+    return (pLen,toIPv6b $ map fromIntegral extendedBytes)
 
 parseBGP4MPMessageAS4 = do
         msgAS4PeerAS <- as4
