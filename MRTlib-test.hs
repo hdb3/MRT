@@ -9,6 +9,5 @@ main = do
     putStrLn "MRTlib-test"
     f <- BS.getContents
     let mrtMsgs = mrtParse f
-    -- print mrtMsgs 
-    mapM_ print ( mrtMsgs ) 
+    mapM_ print mrtMsgs 
     putStrLn "done"
