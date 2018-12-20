@@ -11,5 +11,6 @@ main = do
         putStrLn "no RIB records found in file"
     else do
         putStrLn $ show (length rib) ++ " records read"
-        let map = mrtToPeerMap $ take 10 rib
-        print map
+        let map = mrtToPeerMap $ take 999999999999 rib
+        putStrLn $ reportPeerMap map
+        --print map

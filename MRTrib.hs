@@ -62,3 +62,13 @@ alterRouteMap :: (BGPAttributes,IPv4Prefix) -> Maybe (BGPAttributes,[IPv4Prefix]
 alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
 alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
 
+reportPeerMap :: PeerMap -> String
+reportPeerMap m = "Report PeerMap\n" ++
+                show (length m) ++ " peers in map\n" ++
+                concatMap reportRouteMap (Map.elems m)
+
+reportRouteMap :: RouteMap -> String
+reportRouteMap m = "\nReport RouteMap " ++
+                show (length m) ++ " routes in map " ++
+                show (prefixCount m) ++ " prefixes in map" where
+                prefixCount = sum . map ( length . snd ) . Map.elems
