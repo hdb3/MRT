@@ -26,11 +26,20 @@ import MRTlib
 type IPv4Prefix = (IPv4,Word8)
 type BGPAttributeHash = Int
 type Peer = Word16
+type PeerMapInput = (Peer, BGPAttributeHash,BGPAttributes,IPv4Prefix)
 data RIBrecord = RIBrecord { rrPrefix :: IPv4Prefix, rrPeerIndex :: Word16 , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
 
 extractRIBrecords :: MRTRecord -> [RIBrecord]
 extractRIBrecords rib@RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
     where myHash (BGPAttributes bs) = fromIntegral $ FarmHash.hash64 bs
+
+extractPeerMapInput :: MRTRecord -> [PeerMapInput]
+extractPeerMapInput = (map ribRecordToPeerMapInput) . extractRIBrecords where
+    ribRecordToPeerMapInput :: RIBrecord -> PeerMapInput
+    ribRecordToPeerMapInput RIBrecord{..} = (rrPeerIndex,rrAttributeHash,rrAttributes,rrPrefix)
+
+buildPeerMap :: [PeerMapInput] -> PeerMap
+buildPeerMap = foldl insertPeerMap Map.empty
 
 type PeerMap = Map.IntMap RouteMap
 type RouteMap = Map.IntMap (BGPAttributes,[IPv4Prefix])
