@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleInstances,RecordWildCards #-}
 module MRTrib where
 
 --import qualified Data.ByteString as BS
@@ -9,6 +9,7 @@ module MRTrib where
 --import Data.Attoparsec.Binary
 --import Control.Monad(unless)
 import Data.IP
+import qualified Data.Hashable
 --import Data.Bits
 import Data.Word 
 import qualified Data.IntMap.Strict as Map
@@ -25,6 +26,7 @@ import MRTlib
 
 type IPv4Prefix = (IPv4,Word8)
 type BGPAttributeHash = Int
+type PrefixListHash = Int
 type Peer = Word16
 type PeerMapInput = (Peer, BGPAttributeHash,BGPAttributes,IPv4Prefix)
 data RIBrecord = RIBrecord { rrPrefix :: IPv4Prefix, rrPeerIndex :: Word16 , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
@@ -63,12 +65,51 @@ alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
 alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
 
 reportPeerMap :: PeerMap -> String
-reportPeerMap m = "Report PeerMap\n" ++
-                show (length m) ++ " peers in map\n" ++
-                concatMap reportRouteMap (Map.elems m)
+reportPeerMap m = -- "Report PeerMap\n" ++
+                show (length m) ++ " peers, " ++
+                show (maxr,maxp) ++ " = (max routes, max prefixes), " ++
+                show distinctPrefixGroups ++ " DistinctPrefixGroups, " ++
+                show pratio ++ " pratio\n"
+                where (maxr,maxp) = statsPeerMap m
+                      distinctPrefixGroups = countDistinctPrefixGroups m
+                      pratio = (fromIntegral maxp) / (fromIntegral distinctPrefixGroups)
+                -- ++ concatMap reportRouteMap (Map.elems m)
 
 reportRouteMap :: RouteMap -> String
 reportRouteMap m = "\nReport RouteMap " ++
-                show (length m) ++ " routes in map " ++
-                show (prefixCount m) ++ " prefixes in map" where
-                prefixCount = sum . map ( length . snd ) . Map.elems
+                show rc ++ " routes in map " ++
+                show pc ++ " prefixes in map" where
+                (rc,pc) = statsRouteMap m
+
+statsPeerMap :: PeerMap -> (Int,Int)
+statsPeerMap m = foldl (\(a1,b1) (a2,b2) -> (max a1 a2, max b1 b2)) (0,0) (map statsRouteMap (Map.elems m))
+
+statsRouteMap :: RouteMap -> (Int,Int)
+statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
+-- Prefix Analysis
+
+instance Data.Hashable.Hashable IPv4
+--instance Data.Hashable.Hashable ( [IPv4Prefix] )
+prefixListHash :: [IPv4Prefix] -> PrefixListHash
+prefixListHash = Data.Hashable.hash
+
+getPrefixListHashes :: PeerMap -> [PrefixListHash]
+getPrefixListHashes = concatMap ( map ( prefixListHash . snd ) . Map.elems ) . Map.elems
+
+getPrefixLists :: PeerMap -> [[IPv4Prefix]]
+getPrefixLists = concatMap getRouteMapPrefixLists . Map.elems
+    where
+    getRouteMapPrefixLists :: RouteMap -> [[IPv4Prefix]]
+    getRouteMapPrefixLists  = map snd . Map.elems
+
+countDistinctPrefixGroups :: PeerMap -> Int
+countDistinctPrefixGroups = countDistinct . getPrefixListHashes
+
+type M = Map.IntMap Int
+countDistinct :: [Int] -> Int
+countDistinct ix = length m where
+    m = foldl f Map.empty ix
+    f :: M -> Int -> M
+    f m i = Map.alter f' i m
+    f' Nothing = Just 1
+    f' (Just n) = Just (n+1)

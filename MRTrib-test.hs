@@ -5,12 +5,12 @@ import MRTrib
 
 main :: IO ()
 main = do
-    putStrLn "getting RIB records"
+    --putStrLn "getting RIB records"
     rib <- getMRTTableDumpV2
     if null rib then
         putStrLn "no RIB records found in file"
     else do
-        putStrLn $ show (length rib) ++ " records read"
+        putStr $ show (length rib) ++ " records read "
         let map = mrtToPeerMap $ take 999999999999 rib
-        putStrLn $ reportPeerMap map
+        putStr $ reportPeerMap map
         --print map
