@@ -32,6 +32,7 @@ data RIBrecord = RIBrecord { rrPrefix :: IPv4Prefix, rrPeerIndex :: Word16 , rrO
 extractRIBrecords :: MRTRecord -> [RIBrecord]
 extractRIBrecords rib@RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
     where myHash (BGPAttributes bs) = fromIntegral $ FarmHash.hash64 bs
+extractRIBrecords _ = []
 
 extractPeerMapInput :: MRTRecord -> [PeerMapInput]
 extractPeerMapInput = (map ribRecordToPeerMapInput) . extractRIBrecords where
@@ -40,6 +41,12 @@ extractPeerMapInput = (map ribRecordToPeerMapInput) . extractRIBrecords where
 
 buildPeerMap :: [PeerMapInput] -> PeerMap
 buildPeerMap = foldl insertPeerMap Map.empty
+
+mrtToPeerMap :: [MRTRecord] -> PeerMap
+mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
+
+mrtToPeerMapInput :: [MRTRecord] -> [PeerMapInput]
+mrtToPeerMapInput = concatMap extractPeerMapInput
 
 type PeerMap = Map.IntMap RouteMap
 type RouteMap = Map.IntMap (BGPAttributes,[IPv4Prefix])
