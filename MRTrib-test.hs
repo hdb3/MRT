@@ -12,5 +12,6 @@ main = do
     else do
         putStr $ show (length rib) ++ " records read "
         let map = mrtToPeerMap $ take 999999999999 rib
-        putStr $ reportPeerMap map
+        putStrLn $ reportPeerMap map
+        putStr $ reportDistance map
         --print map
