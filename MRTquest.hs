@@ -4,19 +4,24 @@ import qualified Data.ByteString as BS
 import qualified Data.IntMap.Strict as Map
 import qualified MRTlib
 
+getGroupedMRT :: IO [(MRTTypes, [MRTlib.MRTRecord])]
 getGroupedMRT = fmap group getMRT
     where
     group recs = fmap (\(a,b) -> (unidentify a,b)) $ Map.toList $ foldl f Map.empty recs
     f m v = Map.insertWith f' (identify' v) [v] m
     f' [u] ux = u:ux 
 
+getMRT :: IO [MRTlib.MRTRecord]
 getMRT = fmap MRTlib.mrtParse BS.getContents
 
 
+getMRTTableDumpV2 :: IO [MRTlib.MRTRecord]
 getMRTTableDumpV2 = fmap ( mrtFilterN [MRTPeerIndexTable, RIBIPV4Unicast, RIBIPV6Unicast] ) getMRT
 
+getMRTUpdates :: IO [MRTlib.MRTRecord]
 getMRTUpdates = fmap ( mrtFilter BGP4MPMessageAS4 ) getMRT
 
+identify :: MRTlib.MRTRecord -> MRTTypes
 identify MRTlib.MRTPeerIndexTable{..} = MRTPeerIndexTable
 identify MRTlib.RIBIPV4Unicast{..} = RIBIPV4Unicast
 identify MRTlib.RIBIPV6Unicast{..} = RIBIPV6Unicast
@@ -25,6 +30,8 @@ identify MRTlib.BGP4MPMessageAS4{..} = BGP4MPMessageAS4
 identify MRTlib.BGP4MPStateChangeAS4{..} = BGP4MPStateChangeAS4
 identify MRTlib.RIBv1IPv4{..} = RIBv1IPv4
 identify MRTlib.RIBv1IPv6{..} = RIBv1IPv6
+
+identify' :: MRTlib.MRTRecord -> Int
 identify' = fromEnum . identify
 
 unidentify :: Int -> MRTTypes
@@ -32,7 +39,9 @@ unidentify = toEnum
 
 data MRTTypes = MRTPeerIndexTable|RIBIPV4Unicast|RIBIPV6Unicast|MRTUnimplemented|BGP4MPMessageAS4|BGP4MPStateChangeAS4|RIBv1IPv4|RIBv1IPv6 deriving (Show,Enum,Eq,Ord)
 
+mrtFilter :: MRTTypes -> [MRTlib.MRTRecord] -> [MRTlib.MRTRecord]
 mrtFilter t = filter ( (t ==) . identify)
 
+mrtFilterN :: [MRTTypes] -> [MRTlib.MRTRecord] -> [MRTlib.MRTRecord]
 mrtFilterN types = filter p where
     p mrtrec = elem (identify mrtrec) types
