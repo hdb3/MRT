@@ -1,28 +1,13 @@
 {-# LANGUAGE FlexibleInstances,RecordWildCards #-}
 module MRTrib where
 
---import qualified Data.ByteString as BS
---import qualified Data.ByteString.Char8 as Char8
---import qualified Data.ByteString.Base16
---import qualified Data.Attoparsec.ByteString as DAB
---import Data.Attoparsec.ByteString(Parser,anyWord8,count)
---import Data.Attoparsec.Binary
---import Control.Monad(unless)
 import Data.IP
-import qualified Data.Hashable
---import Data.Bits
 import Data.Word 
 import qualified Data.IntMap.Strict as Map
-
+import qualified Data.Hashable
 import FarmHash(hash64)
+
 import MRTlib
-
--- MRTPeerIndexTable { tdBGPID :: BGPid , tdViewName :: String, peerTable :: [MRTPeer] }
--- RIBIPV4Unicast { re4SequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: IPv4 , re4RIB :: [RIBEntry] }
-
--- MRTPeer { mrtPeerBGPID :: BGPid, mrtPeerASN :: AS4 , mrtPeerIPAddress :: IP } deriving Show
--- RIBEntry { rePeerIndex :: Word16 , reOriginatedTime :: Timestamp , reAttributes :: BGPAttributes } deriving Show
-
 
 type IPv4Prefix = (IPv4,Word8)
 type BGPAttributeHash = Int
@@ -32,12 +17,12 @@ type PeerMapInput = (Peer, BGPAttributeHash,BGPAttributes,IPv4Prefix)
 data RIBrecord = RIBrecord { rrPrefix :: IPv4Prefix, rrPeerIndex :: Word16 , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
 
 extractRIBrecords :: MRTRecord -> [RIBrecord]
-extractRIBrecords rib@RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
+extractRIBrecords RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
     where myHash (BGPAttributes bs) = fromIntegral $ FarmHash.hash64 bs
 extractRIBrecords _ = []
 
 extractPeerMapInput :: MRTRecord -> [PeerMapInput]
-extractPeerMapInput = (map ribRecordToPeerMapInput) . extractRIBrecords where
+extractPeerMapInput = map ribRecordToPeerMapInput . extractRIBrecords where
     ribRecordToPeerMapInput :: RIBrecord -> PeerMapInput
     ribRecordToPeerMapInput RIBrecord{..} = (rrPeerIndex,rrAttributeHash,rrAttributes,rrPrefix)
 
@@ -72,7 +57,7 @@ reportPeerMap m = -- "Report PeerMap\n" ++
                 show pratio ++ " pratio\n"
                 where (maxr,maxp) = statsPeerMap m
                       distinctPrefixGroups = countDistinctPrefixGroups m
-                      pratio = (fromIntegral maxp) / (fromIntegral distinctPrefixGroups)
+                      pratio = fromIntegral maxp / fromIntegral distinctPrefixGroups
                 -- ++ concatMap reportRouteMap (Map.elems m)
 
 reportRouteMap :: RouteMap -> String
@@ -117,13 +102,12 @@ reportDistance m = unlines $ map report peerPairs
     where peerList = getGroupedPrefixListHashes m
           l = length peerList
           peerPairs = [(i,j) | i <- [0 .. l-2], j <- [1 .. l-1],i<j]
-          report (i,j) = show ((i,j)) ++ ": " ++ show ( absoluteDistance (peerList !! i) (peerList !! j) )
+          report (i,j) = show (i,j) ++ ": " ++ show ( absoluteDistance (peerList !! i) (peerList !! j) )
 
 type M = Map.IntMap Int
 countDistinct :: [Int] -> Int
-countDistinct ix = length m where
-    m = foldl f Map.empty ix
+countDistinct ix = length $ foldl f Map.empty ix where
     f :: M -> Int -> M
-    f m i = Map.alter f' i m
-    f' Nothing = Just 1
-    f' (Just n) = Just (n+1)
+    f m i = Map.alter g i m
+    g Nothing = Just 1
+    g (Just n) = Just (n+1)

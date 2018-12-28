@@ -5,7 +5,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Base16
 import qualified Data.Attoparsec.ByteString as DAB
-import Data.Attoparsec.ByteString(Parser,anyWord8,count)
+import Data.Attoparsec.ByteString(Parser,word8,anyWord8,count)
 import Data.Attoparsec.Binary
 import Control.Monad(unless)
 import Data.IP hiding(ipv4,ipv6)
@@ -43,8 +43,8 @@ data MRTRecord = MRTPeerIndexTable { tdBGPID :: BGPid , tdViewName :: String, pe
                  | RIBIPV4Unicast { re4SequenceNumber :: Word32 , re4Length :: Word8 , re4Address :: IPv4 , re4RIB :: [RIBEntry] }
                  | RIBIPV6Unicast { re6SequenceNumber :: Word32 , re6Length :: Word8 , re6Address :: IPv6 , re6RIB :: [RIBEntry] }
                  | MRTUnimplemented { xTimestamp :: Timestamp , xType, xSubtype :: Word16 , xMessage :: HexByteString }
-                 | BGP4MPMessageAS4 { msgAS4PeerAS,msgAS4LocalAS :: AS4 ,msgAS4PeerIP,msgAS4LocalIP :: IP, msgAS4Message :: BGPMessage }
-                 | BGP4MPStateChangeAS4 { scAS4PeerAS,scAS4LocalAS :: AS4 ,scAS4PeerIP,scAS4LocalIP :: IP, scOldState, scNewState:: BGP4MPState }
+                 | BGP4MPMessageAS4 { msgAS4PeerAS,msgAS4LocalAS :: AS4 , msgAS4IfIndex :: Word16, msgAS4PeerIP,msgAS4LocalIP :: IP, msgAS4Message :: BGPMessage }
+                 | BGP4MPStateChangeAS4 { scAS4PeerAS,scAS4LocalAS :: AS4 , scAS4IfIndex :: Word16, scAS4PeerIP,scAS4LocalIP :: IP, scOldState, scNewState:: BGP4MPState }
                  | RIBv1IPv4 { r1v4ViewNumber, r1v4SeqNumber :: Word16, r1v4Prefix :: IPv4 , r1v4Length :: Word8, r1v4Timestamp :: Timestamp , r1v4PeerAddress :: IPv4, r1v4PeerAS :: AS4, r1v4Attributes :: BGPAttributes }
                  | RIBv1IPv6 { r1v6ViewNumber, r1v6SeqNumber :: Word16, r1v6Prefix :: IPv6 , r1v6Length :: Word8, r1v6Timestamp :: Timestamp , r1v6PeerAddress :: IPv6, r1v6PeerAS :: AS4, r1v6Attributes :: BGPAttributes }
                  deriving Show
@@ -134,7 +134,7 @@ parseRIBv1IPv4 = do
     r1v4SeqNumber <- anyWord16be
     r1v4Prefix <- ipv4
     r1v4Length <- anyWord8
-    _ <- anyWord8
+    word8 1
     r1v4Timestamp <- timestamp
     r1v4PeerAddress <- ipv4
     r1v4PeerAS <- as2
@@ -147,7 +147,7 @@ parseRIBv1IPv6 = do
     r1v6SeqNumber <- anyWord16be
     r1v6Prefix <- ipv6
     r1v6Length <- anyWord8
-    _ <- anyWord8
+    word8 1
     r1v6Timestamp <- timestamp
     r1v6PeerAddress <- ipv6
     r1v6PeerAS <- as2
@@ -212,8 +212,7 @@ parsePrefixV6 = do
 parseBGP4MPMessageAS4 = do
         msgAS4PeerAS <- as4
         msgAS4LocalAS <- as4
-        _ <- anyWord16be
-        -- ifIndex <- anyWord16be
+        msgAS4IfIndex <- anyWord16be
         afi <- anyWord16be
         let isV6 = afi == 2
         msgAS4PeerIP <- if isV6 then parseIPv6 else parseIPv4
@@ -224,8 +223,7 @@ parseBGP4MPMessageAS4 = do
 parseBGP4MPStateChangeAS4 = do
         scAS4PeerAS <- as4
         scAS4LocalAS <- as4
-        _ <- anyWord16be
-        -- ifIndex <- anyWord16be
+        scAS4IfIndex <- anyWord16be
         afi <- anyWord16be
         let isV6 = afi == 2
         scAS4PeerIP <- if isV6 then parseIPv6 else parseIPv4
