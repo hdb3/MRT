@@ -36,7 +36,10 @@ newtype BGPid = BGPid IPv4
 instance Show BGPid where
     show (BGPid ip) = show ip
 
+toHex :: Char8.ByteString -> String
 toHex = Char8.unpack . Data.ByteString.Base16.encode
+
+fromHex :: Char8.ByteString -> Char8.ByteString
 fromHex = fst . Data.ByteString.Base16.decode
 
 data MRTRecord = MRTPeerIndexTable { tdBGPID :: BGPid , tdViewName :: String, peerTable :: [MRTPeer] } 
@@ -80,24 +83,39 @@ rawMRTParser = do
         (_,_)  -> do m  <- DAB.take (fromIntegral l )
                      return $ MRTUnimplemented ts t st (HexByteString m)
 
+bs16 :: Parser Char8.ByteString
 bs16 = do
     l <- anyWord16be
     DAB.take (fromIntegral l )
 
+bgpAttributes :: Parser BGPAttributes
 bgpAttributes = fmap BGPAttributes bs16
+bgpMessage :: Parser BGPMessage
 bgpMessage = do
     marker <- DAB.take 16
     unless ( marker == BS.replicate 16 0xff ) (fail "BGP marker synchronisation error")
     l <- anyWord16be
     fmap BGPMessage $ DAB.take (fromIntegral l - 18)
 
+string16 :: Parser String
 string16 = fmap Char8.unpack bs16
 
+timestamp :: Parser Timestamp
 timestamp = fmap Timestamp anyWord32be
+
+as4 :: Parser AS4
 as4 = fmap AS4 anyWord32be
+
+as2 :: Parser AS4
 as2 = fmap (AS4 . fromIntegral) anyWord16be
+
+bgpid :: Parser BGPid
 bgpid = fmap BGPid ipv4
+
+ipv4 :: Parser IPv4
 ipv4 = fmap fromHostAddress anyWord32le
+
+ipv6 :: Parser IPv6
 ipv6 = do
     b1 <- anyWord32be
     b2 <- anyWord32be
@@ -134,7 +152,7 @@ parseRIBv1IPv4 = do
     r1v4SeqNumber <- anyWord16be
     r1v4Prefix <- ipv4
     r1v4Length <- anyWord8
-    word8 1
+    _ <- word8 1
     r1v4Timestamp <- timestamp
     r1v4PeerAddress <- ipv4
     r1v4PeerAS <- as2
@@ -147,7 +165,7 @@ parseRIBv1IPv6 = do
     r1v6SeqNumber <- anyWord16be
     r1v6Prefix <- ipv6
     r1v6Length <- anyWord8
-    word8 1
+    _ <- word8 1
     r1v6Timestamp <- timestamp
     r1v6PeerAddress <- ipv6
     r1v6PeerAS <- as2
@@ -168,6 +186,7 @@ parseRIBIPV6Unicast = do
     re6RIB <- parseRIB
     return RIBIPV6Unicast{..}
 
+parseRIB :: Parser [RIBEntry]
 parseRIB = do
     c <- fmap fromIntegral anyWord16be
     count c parseRIBEntry
@@ -209,6 +228,7 @@ parsePrefixV6 = do
     let extendedBytes = bytes ++ replicate (16-bytePLen) 0
     return (pLen,toIPv6b $ map fromIntegral extendedBytes)
 
+parseBGP4MPMessageAS4 :: Parser MRTRecord
 parseBGP4MPMessageAS4 = do
         msgAS4PeerAS <- as4
         msgAS4LocalAS <- as4
@@ -220,6 +240,7 @@ parseBGP4MPMessageAS4 = do
         msgAS4Message <- bgpMessage
         return BGP4MPMessageAS4{..}  
 
+parseBGP4MPStateChangeAS4 :: Parser MRTRecord
 parseBGP4MPStateChangeAS4 = do
         scAS4PeerAS <- as4
         scAS4LocalAS <- as4
