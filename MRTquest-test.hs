@@ -3,7 +3,7 @@ module Main where
 import MRTquest
 
 main :: IO ()
-main = mainUpdateRecords
+main = mainRibRecords
 
 mainGroupedRecords = do
     putStrLn "get grouped records"
@@ -17,7 +17,8 @@ mainAllRecords = do
 
 mainRibRecords = do
     putStrLn "get RIB records"
-    rib <- getMRTTableDumpV2
+    (peerTable,rib) <- getMRTTableDumpV2
+    putStrLn $ "peer table:" ++ show peerTable
     putStrLn $ show (length rib) ++ " records read"
 
 mainUpdateRecords = do
