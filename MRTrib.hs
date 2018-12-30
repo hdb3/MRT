@@ -49,6 +49,10 @@ alterRouteMap :: (BGPAttributes,IPv4Prefix) -> Maybe (BGPAttributes,[IPv4Prefix]
 alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
 alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
 
+reportPeerTable :: MRTRecord -> String
+reportPeerTable MRTlib.MRTPeerIndexTable{..} = "MRTPeerIndexTable { tdBGPID = " ++ show tdBGPID ++ " tdViewName = " ++ show tdViewName ++ "\n" ++
+                                               unlines (map show peerTable) ++ "\n}"
+
 reportPeerMap :: PeerMap -> String
 reportPeerMap m = -- "Report PeerMap\n" ++
                 show (length m) ++ " peers, " ++
