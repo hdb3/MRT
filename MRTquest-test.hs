@@ -14,7 +14,7 @@ mainAllRecords = do
     putStrLn "get all records"
     mrt <- getMRT
     putStrLn $ show (length mrt) ++ " records read"
-    print $ mrtTypeCount mrt
+    putStr $ unlines $ map show $ mrtTypeCount mrt
 
 mainRibRecords = do
     putStrLn "get RIB records"
