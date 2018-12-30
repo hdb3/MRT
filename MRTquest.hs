@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 module MRTquest where
+import Data.Array.IArray
 import qualified Data.ByteString as BS
 import qualified Data.IntMap.Strict as Map
 import qualified MRTlib
@@ -43,7 +44,8 @@ identify' = fromEnum . identify
 unidentify :: Int -> MRTTypes
 unidentify = toEnum
 
-data MRTTypes = MRTPeerIndexTable|RIBIPV4Unicast|RIBIPV6Unicast|MRTUnimplemented|BGP4MPMessageAS4|BGP4MPStateChangeAS4|RIBv1IPv4|RIBv1IPv6 deriving (Show,Enum,Eq,Ord)
+data MRTTypes = MRTPeerIndexTable|RIBIPV4Unicast|RIBIPV6Unicast|MRTUnimplemented|BGP4MPMessageAS4|BGP4MPStateChangeAS4|RIBv1IPv4|RIBv1IPv6
+     deriving (Show,Enum,Bounded,Ix,Eq,Ord)
 
 mrtFilter :: MRTTypes -> [MRTlib.MRTRecord] -> [MRTlib.MRTRecord]
 mrtFilter t = filter ( (t ==) . identify)
@@ -51,3 +53,12 @@ mrtFilter t = filter ( (t ==) . identify)
 mrtFilterN :: [MRTTypes] -> [MRTlib.MRTRecord] -> [MRTlib.MRTRecord]
 mrtFilterN types = filter p where
     p mrtrec = elem (identify mrtrec) types
+
+mrtTypes :: [MRTlib.MRTRecord] -> [MRTTypes]
+mrtTypes = map identify
+
+mrtTypeCount  :: [MRTlib.MRTRecord] -> [(MRTTypes,Int)]
+mrtTypeCount mrtRecs = assocs arr where arr :: Array MRTTypes Int
+                                        arr = accumArray (+) 0 bnds $ map (\mrt -> (identify mrt,1)) mrtRecs
+                                        bnds = (minBound :: MRTTypes, maxBound :: MRTTypes)
+-- mrtTypeCount mrtRecs = assocs $ accumArray (+) 0 bnds $ map (\mrt -> (identify mrt,1)) mrtRecs

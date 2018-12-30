@@ -3,7 +3,7 @@ module Main where
 import MRTquest
 
 main :: IO ()
-main = mainRibRecords
+main = mainAllRecords
 
 mainGroupedRecords = do
     putStrLn "get grouped records"
@@ -14,6 +14,7 @@ mainAllRecords = do
     putStrLn "get all records"
     mrt <- getMRT
     putStrLn $ show (length mrt) ++ " records read"
+    print $ mrtTypeCount mrt
 
 mainRibRecords = do
     putStrLn "get RIB records"
