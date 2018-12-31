@@ -14,12 +14,11 @@ type BGPAttributeHash = Int
 type PrefixListHash = Int
 type Peer = Word16
 type PeerMapInput = (Peer, BGPAttributeHash,BGPAttributes,IPv4Prefix)
+type RouteMap = Map.IntMap (BGPAttributes,[IPv4Prefix])
+type PeerMap = Map.IntMap RouteMap
+
 data RIBrecord = RIBrecord { rrPrefix :: IPv4Prefix, rrPeerIndex :: Word16 , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
 
-extractRIBrecords :: MRTRecord -> [RIBrecord]
-extractRIBrecords RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
-    where myHash (BGPAttributes bs) = fromIntegral $ FarmHash.hash64 bs
-extractRIBrecords _ = []
 
 mrtToPeerMap :: [MRTRecord] -> PeerMap
 mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
@@ -30,17 +29,17 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
 
     extractPeerMapInput :: MRTRecord -> [PeerMapInput]
     extractPeerMapInput = map ribRecordToPeerMapInput . extractRIBrecords
+    extractRIBrecords :: MRTRecord -> [RIBrecord]
+    extractRIBrecords RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
+    extractRIBrecords _ = []
+    myHash (BGPAttributes bs) = fromIntegral $ FarmHash.hash64 bs
 
     ribRecordToPeerMapInput :: RIBrecord -> PeerMapInput
     ribRecordToPeerMapInput RIBrecord{..} = (rrPeerIndex,rrAttributeHash,rrAttributes,rrPrefix)
 
 
-type RouteMap = Map.IntMap (BGPAttributes,[IPv4Prefix])
-type PeerMap = Map.IntMap RouteMap
-
-buildPeerMap :: [PeerMapInput] -> PeerMap
-buildPeerMap = foldl insertPeerMap Map.empty
-    where
+    buildPeerMap :: [PeerMapInput] -> PeerMap
+    buildPeerMap = foldl insertPeerMap Map.empty
 
     insertPeerMap :: PeerMap -> (Peer, BGPAttributeHash,BGPAttributes,IPv4Prefix) -> PeerMap
     insertPeerMap m (peer,hash,attrs,prefix) = Map.alter (insertRouteMap (hash,attrs,prefix)) (fromIntegral peer) m
