@@ -64,6 +64,10 @@ getDiscRouteMap m = DiscRouteMap m4 m6
     (m4,m6) = Map.mapEither f (discriminateRouteMap m)
     f (attr,IP4PrefixList l4) = Left (attr, l4)
     f (attr,IP6PrefixList l6) = Right (attr, l6)
+
+keys = Map.keys
+getDiscPeerMap :: Map.IntMap RouteMap -> Map.IntMap DiscRouteMap
+getDiscPeerMap = Map.map getDiscRouteMap
 type PeerMap' = Map.IntMap RouteMap'
 discriminate :: PrefixList -> DiscPrefixList
 discriminate l4@((IPv4 _,_) : ipx ) = IP4PrefixList $ map (\(ip4,l) -> (Data.IP.ipv4 ip4,l)) l4 
