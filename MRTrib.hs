@@ -14,12 +14,12 @@ type PrefixList = [IPPrefix]
 --type IPv4Prefix = (IPv4,Word8)
 type BGPAttributeHash = Int
 type PrefixListHash = Int
-type Peer = Word16
-type PeerMapInput = (Peer, BGPAttributeHash,BGPAttributes,IPPrefix)
+type PeerIndex = Word16
+type PeerMapInput = (PeerIndex, BGPAttributeHash,BGPAttributes,IPPrefix)
 type RouteMap = Map.IntMap (BGPAttributes,PrefixList)
 type PeerMap = Map.IntMap RouteMap
 
-data RIBrecord = RIBrecord { rrPrefix :: IPPrefix, rrPeerIndex :: Word16 , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
+data RIBrecord = RIBrecord { rrPrefix :: IPPrefix, rrPeerIndex :: PeerIndex , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
 
 
 mrtToPeerMap :: [MRTRecord] -> PeerMap
@@ -44,7 +44,7 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
     buildPeerMap :: [PeerMapInput] -> PeerMap
     buildPeerMap = foldl insertPeerMap Map.empty
 
-    insertPeerMap :: PeerMap -> (Peer, BGPAttributeHash,BGPAttributes,IPPrefix) -> PeerMap
+    insertPeerMap :: PeerMap -> (PeerIndex, BGPAttributeHash,BGPAttributes,IPPrefix) -> PeerMap
     insertPeerMap m (peer,hash,attrs,prefix) = Map.alter (insertRouteMap (hash,attrs,prefix)) (fromIntegral peer) m
 
     insertRouteMap :: (BGPAttributeHash,BGPAttributes,IPPrefix) -> Maybe RouteMap -> Maybe RouteMap
