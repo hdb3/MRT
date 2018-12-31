@@ -9,15 +9,17 @@ import FarmHash(hash64)
 
 import MRTlib
 
-type IPv4Prefix = (IPv4,Word8)
+type IPPrefix = (IP,Word8)
+type PrefixList = [IPPrefix]
+--type IPv4Prefix = (IPv4,Word8)
 type BGPAttributeHash = Int
 type PrefixListHash = Int
 type Peer = Word16
-type PeerMapInput = (Peer, BGPAttributeHash,BGPAttributes,IPv4Prefix)
-type RouteMap = Map.IntMap (BGPAttributes,[IPv4Prefix])
+type PeerMapInput = (Peer, BGPAttributeHash,BGPAttributes,IPPrefix)
+type RouteMap = Map.IntMap (BGPAttributes,PrefixList)
 type PeerMap = Map.IntMap RouteMap
 
-data RIBrecord = RIBrecord { rrPrefix :: IPv4Prefix, rrPeerIndex :: Word16 , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
+data RIBrecord = RIBrecord { rrPrefix :: IPPrefix, rrPeerIndex :: Word16 , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
 
 
 mrtToPeerMap :: [MRTRecord] -> PeerMap
@@ -30,7 +32,8 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
     extractPeerMapInput :: MRTRecord -> [PeerMapInput]
     extractPeerMapInput = map ribRecordToPeerMapInput . extractRIBrecords
     extractRIBrecords :: MRTRecord -> [RIBrecord]
-    extractRIBrecords RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
+    extractRIBrecords RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (Data.IP.IPv4 re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
+    extractRIBrecords RIBIPV6Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (Data.IP.IPv6 re6Address,re6Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re6RIB
     extractRIBrecords _ = []
     myHash (BGPAttributes bs) = fromIntegral $ FarmHash.hash64 bs
 
@@ -41,14 +44,14 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
     buildPeerMap :: [PeerMapInput] -> PeerMap
     buildPeerMap = foldl insertPeerMap Map.empty
 
-    insertPeerMap :: PeerMap -> (Peer, BGPAttributeHash,BGPAttributes,IPv4Prefix) -> PeerMap
+    insertPeerMap :: PeerMap -> (Peer, BGPAttributeHash,BGPAttributes,IPPrefix) -> PeerMap
     insertPeerMap m (peer,hash,attrs,prefix) = Map.alter (insertRouteMap (hash,attrs,prefix)) (fromIntegral peer) m
 
-    insertRouteMap :: (BGPAttributeHash,BGPAttributes,IPv4Prefix) -> Maybe RouteMap -> Maybe RouteMap
+    insertRouteMap :: (BGPAttributeHash,BGPAttributes,IPPrefix) -> Maybe RouteMap -> Maybe RouteMap
     insertRouteMap (hash,attrs,prefix) Nothing = Just $ Map.singleton hash (attrs,[prefix])
     insertRouteMap (hash,attrs,prefix) (Just routeMap) = Just $ Map.alter (alterRouteMap (attrs,prefix)) hash routeMap
 
-    alterRouteMap :: (BGPAttributes,IPv4Prefix) -> Maybe (BGPAttributes,[IPv4Prefix]) -> Maybe (BGPAttributes,[IPv4Prefix])
+    alterRouteMap :: (BGPAttributes,IPPrefix) -> Maybe (BGPAttributes,PrefixList) -> Maybe (BGPAttributes,PrefixList)
     alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
     alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
 
@@ -81,9 +84,11 @@ statsRouteMap :: RouteMap -> (Int,Int)
 statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
 -- Prefix Analysis
 
+instance Data.Hashable.Hashable IP
 instance Data.Hashable.Hashable IPv4
+instance Data.Hashable.Hashable IPv6
 
-prefixListHash :: [IPv4Prefix] -> PrefixListHash
+prefixListHash :: PrefixList -> PrefixListHash
 prefixListHash = Data.Hashable.hash
 
 getGroupedPrefixListHashes :: PeerMap -> [[PrefixListHash]]
@@ -96,10 +101,10 @@ absoluteDistance l1 l2 = countDistinct (l1 ++ l2) - max (length l1) (length l2)
 getPrefixListHashes :: PeerMap -> [PrefixListHash]
 getPrefixListHashes = concatMap ( map ( prefixListHash . snd ) . Map.elems ) . Map.elems
 
-getPrefixLists :: PeerMap -> [[IPv4Prefix]]
+getPrefixLists :: PeerMap -> [PrefixList]
 getPrefixLists = concatMap getRouteMapPrefixLists . Map.elems
     where
-    getRouteMapPrefixLists :: RouteMap -> [[IPv4Prefix]]
+    getRouteMapPrefixLists :: RouteMap -> [PrefixList]
     getRouteMapPrefixLists  = map snd . Map.elems
 
 countDistinctPrefixGroups :: PeerMap -> Int
