@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances,RecordWildCards #-}
+{-# LANGUAGE DataKinds,FlexibleInstances,RecordWildCards #-}
 module MRTrib where
 
 import Data.IP
@@ -21,37 +21,42 @@ extractRIBrecords RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefi
     where myHash (BGPAttributes bs) = fromIntegral $ FarmHash.hash64 bs
 extractRIBrecords _ = []
 
-extractPeerMapInput :: MRTRecord -> [PeerMapInput]
-extractPeerMapInput = map ribRecordToPeerMapInput . extractRIBrecords where
+mrtToPeerMap :: [MRTRecord] -> PeerMap
+mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
+    where
+
+    mrtToPeerMapInput :: [MRTRecord] -> [PeerMapInput]
+    mrtToPeerMapInput = concatMap extractPeerMapInput
+
+    extractPeerMapInput :: MRTRecord -> [PeerMapInput]
+    extractPeerMapInput = map ribRecordToPeerMapInput . extractRIBrecords
+
     ribRecordToPeerMapInput :: RIBrecord -> PeerMapInput
     ribRecordToPeerMapInput RIBrecord{..} = (rrPeerIndex,rrAttributeHash,rrAttributes,rrPrefix)
 
+
+type RouteMap = Map.IntMap (BGPAttributes,[IPv4Prefix])
+type PeerMap = Map.IntMap RouteMap
+
 buildPeerMap :: [PeerMapInput] -> PeerMap
 buildPeerMap = foldl insertPeerMap Map.empty
+    where
 
-mrtToPeerMap :: [MRTRecord] -> PeerMap
-mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
+    insertPeerMap :: PeerMap -> (Peer, BGPAttributeHash,BGPAttributes,IPv4Prefix) -> PeerMap
+    insertPeerMap m (peer,hash,attrs,prefix) = Map.alter (insertRouteMap (hash,attrs,prefix)) (fromIntegral peer) m
 
-mrtToPeerMapInput :: [MRTRecord] -> [PeerMapInput]
-mrtToPeerMapInput = concatMap extractPeerMapInput
+    insertRouteMap :: (BGPAttributeHash,BGPAttributes,IPv4Prefix) -> Maybe RouteMap -> Maybe RouteMap
+    insertRouteMap (hash,attrs,prefix) Nothing = Just $ Map.singleton hash (attrs,[prefix])
+    insertRouteMap (hash,attrs,prefix) (Just routeMap) = Just $ Map.alter (alterRouteMap (attrs,prefix)) hash routeMap
 
-type PeerMap = Map.IntMap RouteMap
-type RouteMap = Map.IntMap (BGPAttributes,[IPv4Prefix])
-
-insertPeerMap :: PeerMap -> (Peer, BGPAttributeHash,BGPAttributes,IPv4Prefix) -> PeerMap
-insertPeerMap m (peer,hash,attrs,prefix) = Map.alter (insertRouteMap (hash,attrs,prefix)) (fromIntegral peer) m
-
-insertRouteMap :: (BGPAttributeHash,BGPAttributes,IPv4Prefix) -> Maybe RouteMap -> Maybe RouteMap
-insertRouteMap (hash,attrs,prefix) Nothing = Just $ Map.singleton hash (attrs,[prefix])
-insertRouteMap (hash,attrs,prefix) (Just routeMap) = Just $ Map.alter (alterRouteMap (attrs,prefix)) hash routeMap
-
-alterRouteMap :: (BGPAttributes,IPv4Prefix) -> Maybe (BGPAttributes,[IPv4Prefix]) -> Maybe (BGPAttributes,[IPv4Prefix])
-alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
-alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
+    alterRouteMap :: (BGPAttributes,IPv4Prefix) -> Maybe (BGPAttributes,[IPv4Prefix]) -> Maybe (BGPAttributes,[IPv4Prefix])
+    alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
+    alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
 
 reportPeerTable :: MRTRecord -> String
 reportPeerTable MRTlib.MRTPeerIndexTable{..} = "MRTPeerIndexTable { tdBGPID = " ++ show tdBGPID ++ " tdViewName = " ++ show tdViewName ++ "\n" ++
                                                unlines (map show peerTable) ++ "\n}"
+reportPeerTable _ = error "reportPeerTable only defined on MRTlib.MRTPeerIndexTable"
 
 reportPeerMap :: PeerMap -> String
 reportPeerMap m = -- "Report PeerMap\n" ++
@@ -61,7 +66,7 @@ reportPeerMap m = -- "Report PeerMap\n" ++
                 show pratio ++ " pratio\n"
                 where (maxr,maxp) = statsPeerMap m
                       distinctPrefixGroups = countDistinctPrefixGroups m
-                      pratio = fromIntegral maxp / fromIntegral distinctPrefixGroups
+                      pratio = fromIntegral maxp / fromIntegral distinctPrefixGroups :: Float
                 -- ++ concatMap reportRouteMap (Map.elems m)
 
 reportRouteMap :: RouteMap -> String
@@ -103,15 +108,17 @@ countDistinctPrefixGroups = countDistinct . getPrefixListHashes
 
 reportDistance :: PeerMap -> String
 reportDistance m = unlines $ map report peerPairs
-    where peerList = getGroupedPrefixListHashes m
-          l = length peerList
-          peerPairs = [(i,j) | i <- [0 .. l-2], j <- [1 .. l-1],i<j]
-          report (i,j) = show (i,j) ++ ": " ++ show ( absoluteDistance (peerList !! i) (peerList !! j) )
+    where
+    peerList = getGroupedPrefixListHashes m
+    l = length peerList
+    peerPairs = [(i,j) | i <- [0 .. l-2], j <- [1 .. l-1],i<j]
+    report (i,j) = show (i,j) ++ ": " ++ show ( absoluteDistance (peerList !! i) (peerList !! j) )
 
-type M = Map.IntMap Int
 countDistinct :: [Int] -> Int
 countDistinct ix = length $ foldl f Map.empty ix where
-    f :: M -> Int -> M
+    --type M = Map.IntMap Int
+    --f :: M -> Int -> M
+    f :: Map.IntMap Int -> Int -> Map.IntMap Int
     f m i = Map.alter g i m
     g Nothing = Just 1
     g (Just n) = Just (n+1)
