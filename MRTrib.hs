@@ -55,6 +55,24 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
     alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
     alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
 
+data DiscPrefixList = IP4PrefixList [(IPv4,Word8)] | IP6PrefixList [(IPv6,Word8)]
+type RouteMap' = Map.IntMap (BGPAttributes,DiscPrefixList)
+data DiscRouteMap = DiscRouteMap (Map.IntMap (BGPAttributes,[(IPv4,Word8)])) (Map.IntMap (BGPAttributes,[(IPv6,Word8)]))
+getDiscRouteMap :: RouteMap -> DiscRouteMap
+getDiscRouteMap m = DiscRouteMap m4 m6
+    where
+    (m4,m6) = Map.mapEither f (discriminateRouteMap m)
+    f (attr,IP4PrefixList l4) = Left (attr, l4)
+    f (attr,IP6PrefixList l6) = Right (attr, l6)
+type PeerMap' = Map.IntMap RouteMap'
+discriminate :: PrefixList -> DiscPrefixList
+discriminate l4@((IPv4 _,_) : ipx ) = IP4PrefixList $ map (\(ip4,l) -> (Data.IP.ipv4 ip4,l)) l4 
+discriminate l6@((IPv6 _,_) : ipx ) = IP6PrefixList $ map (\(ip6,l) -> (Data.IP.ipv6 ip6,l)) l6
+discriminatePeerMap :: PeerMap -> PeerMap'
+discriminatePeerMap = Map.map discriminateRouteMap
+discriminateRouteMap :: RouteMap -> RouteMap'
+discriminateRouteMap = Map.map (\(attr,pfxs) -> (attr,discriminate pfxs))
+
 reportPeerTable :: MRTRecord -> String
 reportPeerTable MRTlib.MRTPeerIndexTable{..} = "MRTPeerIndexTable { tdBGPID = " ++ show tdBGPID ++ " tdViewName = " ++ show tdViewName ++ "\n" ++
                                                unlines (map show peerTable) ++ "\n}"
@@ -66,10 +84,21 @@ reportPeerMap m = -- "Report PeerMap\n" ++
                 show (maxr,maxp) ++ " = (max routes, max prefixes), " ++
                 show distinctPrefixGroups ++ " DistinctPrefixGroups, " ++
                 show pratio ++ " pratio\n"
+                ++ concatMap reportRouteMap (Map.elems m)
+                ++ concatMap reportDiscRouteMap (Map.elems m)
                 where (maxr,maxp) = statsPeerMap m
                       distinctPrefixGroups = countDistinctPrefixGroups m
                       pratio = fromIntegral maxp / fromIntegral distinctPrefixGroups :: Float
-                -- ++ concatMap reportRouteMap (Map.elems m)
+
+reportDiscRouteMap :: RouteMap -> String
+reportDiscRouteMap m = "\nReport DiscRouteMap " ++
+                show rc4 ++ " IP4 routes in map " ++
+                show pc4 ++ " IP4 prefixes in map " ++
+                show rc6 ++ " IP6 routes in map " ++
+                show pc6 ++ " IP6 prefixes in map" where
+                (rc4,pc4) = statsRouteMap m4
+                (rc6,pc6) = statsRouteMap m6
+                (DiscRouteMap m4 m6) = getDiscRouteMap m
 
 reportRouteMap :: RouteMap -> String
 reportRouteMap m = "\nReport RouteMap " ++
@@ -80,7 +109,7 @@ reportRouteMap m = "\nReport RouteMap " ++
 statsPeerMap :: PeerMap -> (Int,Int)
 statsPeerMap m = foldl (\(a1,b1) (a2,b2) -> (max a1 a2, max b1 b2)) (0,0) (map statsRouteMap (Map.elems m))
 
-statsRouteMap :: RouteMap -> (Int,Int)
+--statsRouteMap :: RouteMap -> (Int,Int)
 statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
 -- Prefix Analysis
 
