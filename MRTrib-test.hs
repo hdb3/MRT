@@ -13,6 +13,7 @@ main = do
         putStrLn $ reportPeerTable peerTable
         let map = mrtToPeerMap rib
             discMap = getDiscPeerMap map
-        putStrLn $ "keys: " ++ show (keys discMap)
+            k = keys discMap
+        putStrLn $ "#keys, keys: " ++ show (length k,k)
         putStrLn $ reportPeerMap map
         putStr $ reportDistance map
