@@ -92,18 +92,17 @@ reportPeerMap m = -- "Report PeerMap\n" ++
 
 reportDiscRouteMap :: RouteMap -> String
 reportDiscRouteMap m = "\nReport DiscRouteMap " ++
-                show rc4 ++ " IP4 routes in map " ++
-                show pc4 ++ " IP4 prefixes in map " ++
-                show rc6 ++ " IP6 routes in map " ++
-                show pc6 ++ " IP6 prefixes in map" where
+                show (rc4,pc4) ++ " IP4 routes/prefixes " ++
+                show (rc6,pc6) ++ " IP6 routes/prefixes "
+                where
                 (rc4,pc4) = statsRouteMap m4
                 (rc6,pc6) = statsRouteMap m6
                 (DiscRouteMap m4 m6) = getDiscRouteMap m
 
 reportRouteMap :: RouteMap -> String
 reportRouteMap m = "\nReport RouteMap " ++
-                show rc ++ " routes in map " ++
-                show pc ++ " prefixes in map" where
+                show (rc,pc) ++ " routes/prefixes "
+                where
                 (rc,pc) = statsRouteMap m
 
 statsPeerMap :: PeerMap -> (Int,Int)
