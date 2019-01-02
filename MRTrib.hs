@@ -55,9 +55,10 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
     alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
     alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
 
-data DiscPrefixList = IP4PrefixList [(IPv4,Word8)] | IP6PrefixList [(IPv6,Word8)]
-type RouteMap' = Map.IntMap (BGPAttributes,DiscPrefixList)
+-- building intermediate form (het list -> tuple hom list)
 data DiscRouteMap = DiscRouteMap (Map.IntMap (BGPAttributes,[(IPv4,Word8)])) (Map.IntMap (BGPAttributes,[(IPv6,Word8)]))
+type DiscPeerMap = Map.IntMap DiscRouteMap
+
 getDiscRouteMap :: RouteMap -> DiscRouteMap
 getDiscRouteMap m = DiscRouteMap m4 m6
     where
@@ -65,17 +66,35 @@ getDiscRouteMap m = DiscRouteMap m4 m6
     f (attr,IP4PrefixList l4) = Left (attr, l4)
     f (attr,IP6PrefixList l6) = Right (attr, l6)
 
-keys = Map.keys
-getDiscPeerMap :: Map.IntMap RouteMap -> Map.IntMap DiscRouteMap
+getDiscPeerMap :: PeerMap -> DiscPeerMap
 getDiscPeerMap = Map.map getDiscRouteMap
+
+-- building final disc hom list, from tuple hom list
+
+data DiscPrefixList = IP4PrefixList [(IPv4,Word8)] | IP6PrefixList [(IPv6,Word8)] | Empty
+type RouteMap' = Map.IntMap (BGPAttributes,DiscPrefixList)
 type PeerMap' = Map.IntMap RouteMap'
-discriminate :: PrefixList -> DiscPrefixList
-discriminate l4@((IPv4 _,_) : ipx ) = IP4PrefixList $ map (\(ip4,l) -> (Data.IP.ipv4 ip4,l)) l4 
-discriminate l6@((IPv6 _,_) : ipx ) = IP6PrefixList $ map (\(ip6,l) -> (Data.IP.ipv6 ip6,l)) l6
+
+keys = Map.keys
+{-
+getPeerIndexMap :: [MRTRecord] -> PeerIndex -> DiscRouteMap
+getPeerIndexMap mrts px =
+    lookup' px (mrtToDiscPeerMap mrts)
+    where 
+    lookup' k m = fromMaybe 
+-}
 discriminatePeerMap :: PeerMap -> PeerMap'
 discriminatePeerMap = Map.map discriminateRouteMap
 discriminateRouteMap :: RouteMap -> RouteMap'
 discriminateRouteMap = Map.map (\(attr,pfxs) -> (attr,discriminate pfxs))
+    where
+    discriminate :: PrefixList -> DiscPrefixList
+    discriminate l4@((IPv4 _,_) : ipx ) = IP4PrefixList $ map (\(ip4,l) -> (Data.IP.ipv4 ip4,l)) l4 
+    discriminate l6@((IPv6 _,_) : ipx ) = IP6PrefixList $ map (\(ip6,l) -> (Data.IP.ipv6 ip6,l)) l6
+
+--
+-- show/report
+--
 
 reportPeerTable :: MRTRecord -> String
 reportPeerTable MRTlib.MRTPeerIndexTable{..} = "MRTPeerIndexTable { tdBGPID = " ++ show tdBGPID ++ " tdViewName = " ++ show tdViewName ++ "\n" ++
