@@ -29,6 +29,8 @@ emptyRouteMap = (Map.empty,Map.empty)
 type PeerMap = Map.IntMap RouteMap
 data PeerTableEntry = PT { ptPeer :: MRTPeer, ptRibV4 :: RouteMapv4, ptRibV6 :: RouteMapv6 }
 type PeerTable = Array PeerIndex PeerTableEntry
+type IPv4PeerTable = Array PeerIndex (MRTPeer,RouteMapv4)
+type IPv6PeerTable = Array PeerIndex (MRTPeer,RouteMapv6)
 
 data RIBrecord = RIBrecord { rrPrefix :: IPPrefix, rrPeerIndex :: PeerIndex , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
 
@@ -108,3 +110,30 @@ showPeerTable = unlines . map (\(ix,pte) -> show ix ++ ": " ++ showPeerTableEntr
     where
     showPeerTableEntry PT{..} = "IPv4: " ++ show (statsRouteMap ptRibV4) ++ "  IPv6: " ++ show (statsRouteMap ptRibV6) ++ " : " ++ show ptPeer
     statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
+
+showStatsRouteMap m = show (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
+size a = (h -l + 1) where (l,h) = bounds a
+
+getIPv4PeerTable :: PeerTable -> IPv4PeerTable
+getIPv4PeerTable pt = listArray (0,fromIntegral $ length l - 1) l where
+    l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p r4 r6) -> (p,r4)) $ elems pt
+
+showIPv4PeerTable :: IPv4PeerTable -> String
+showIPv4PeerTable a = "IPv4 peers ("
+                      ++ ( show $ size a )
+                      ++ ")\n"
+                      ++ ( unlines $ map showIPv4PeerTableEntry $ assocs $ a)
+    where
+    showIPv4PeerTableEntry (i,(p,r)) = show i ++ " " ++ show p ++ " " ++ showStatsRouteMap r
+ 
+getIPv6PeerTable :: PeerTable -> IPv6PeerTable
+getIPv6PeerTable pt = listArray (0,fromIntegral $ length l - 1) l where
+    l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p r4 r6) -> (p,r6)) $ elems pt
+
+showIPv6PeerTable :: IPv6PeerTable -> String
+showIPv6PeerTable a = "IPv6 peers ("
+                      ++ ( show $ size a )
+                      ++ ")\n"
+                      ++ ( unlines $ map showIPv6PeerTableEntry $ assocs $ a)
+    where
+    showIPv6PeerTableEntry (i,(p,r)) = show i ++ " " ++ show p ++ " " ++ showStatsRouteMap r
