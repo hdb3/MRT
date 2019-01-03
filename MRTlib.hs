@@ -52,7 +52,9 @@ data MRTRecord = MRTPeerIndexTable { tdBGPID :: BGPid , tdViewName :: String, pe
                  | RIBv1IPv6 { r1v6ViewNumber, r1v6SeqNumber :: Word16, r1v6Prefix :: IPv6 , r1v6Length :: Word8, r1v6Timestamp :: Timestamp , r1v6PeerAddress :: IPv6, r1v6PeerAS :: AS4, r1v6Attributes :: BGPAttributes }
                  deriving Show
 
-data MRTPeer = MRTPeer { mrtPeerBGPID :: BGPid, mrtPeerASN :: AS4 , mrtPeerIPAddress :: IP } deriving Show
+data MRTPeer = MRTPeer { mrtPeerBGPID :: BGPid, mrtPeerASN :: AS4 , mrtPeerIPAddress :: IP } -- deriving Show
+instance Show MRTPeer where
+    show MRTPeer {..} = "Peer: " ++ show mrtPeerBGPID ++ "/" ++ show mrtPeerASN ++ "@" ++ show mrtPeerIPAddress
 data RIBEntry = RIBEntry { rePeerIndex :: Word16 , reOriginatedTime :: Timestamp , reAttributes :: BGPAttributes } deriving Show
 data BGP4MPState = BGP4MPIdle | BGP4MPConnect | BGP4MPActive | BGP4MPOpenSent | BGP4MPOpenConfirm | BGP4MPEstablished deriving Show
 

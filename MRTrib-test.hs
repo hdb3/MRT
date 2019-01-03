@@ -18,3 +18,5 @@ main = do
         -- putStrLn $ "#keys, keys: " ++ show (length k,k)
         putStrLn $ reportPeerMap map
         -- putStr $ reportDistance map
+        let pt = getPeerTable (peerTable:rib)
+        putStrLn $ showPeerTable pt
