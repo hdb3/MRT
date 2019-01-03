@@ -9,18 +9,24 @@ import FarmHash(hash64)
 
 import MRTlib
 
-type IPPrefix = (IP,Word8)
+data IPPrefix = IP4Prefix IP4Prefix | IP6Prefix IP6Prefix deriving Show
 type PrefixList = [IPPrefix]
---type IPv4Prefix = (IPv4,Word8)
+type IP4Prefix = (IPv4,Word8)
+type IP4PrefixList = [IP4Prefix]
+type IP6Prefix = (IPv6,Word8)
+type IP6PrefixList = [IP6Prefix]
 type BGPAttributeHash = Int
 type PrefixListHash = Int
 type PeerIndex = Word16
 type PeerMapInput = (PeerIndex, BGPAttributeHash,BGPAttributes,IPPrefix)
-type RouteMap = Map.IntMap (BGPAttributes,PrefixList)
+type RouteMapv4 = Map.IntMap (BGPAttributes,IP4PrefixList)
+type RouteMapv6 = Map.IntMap (BGPAttributes,IP6PrefixList)
+type RouteMap = (RouteMapv4, RouteMapv6)
+emptyRouteMap :: RouteMap
+emptyRouteMap = (Map.empty,Map.empty)
 type PeerMap = Map.IntMap RouteMap
 
 data RIBrecord = RIBrecord { rrPrefix :: IPPrefix, rrPeerIndex :: PeerIndex , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
-
 
 mrtToPeerMap :: [MRTRecord] -> PeerMap
 mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
@@ -32,8 +38,8 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
     extractPeerMapInput :: MRTRecord -> [PeerMapInput]
     extractPeerMapInput = map ribRecordToPeerMapInput . extractRIBrecords
     extractRIBrecords :: MRTRecord -> [RIBrecord]
-    extractRIBrecords RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (Data.IP.IPv4 re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
-    extractRIBrecords RIBIPV6Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = (Data.IP.IPv6 re6Address,re6Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re6RIB
+    extractRIBrecords RIBIPV4Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = IP4Prefix (re4Address,re4Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re4RIB
+    extractRIBrecords RIBIPV6Unicast{..} = map (\RIBEntry{..} -> RIBrecord { rrPrefix = IP6Prefix (re6Address,re6Length), rrPeerIndex = rePeerIndex, rrOriginatedTime = reOriginatedTime, rrAttributes = reAttributes, rrAttributeHash = myHash reAttributes }) re6RIB
     extractRIBrecords _ = []
     myHash (BGPAttributes bs) = fromIntegral $ FarmHash.hash64 bs
 
@@ -48,13 +54,15 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
     insertPeerMap m (peer,hash,attrs,prefix) = Map.alter (insertRouteMap (hash,attrs,prefix)) (fromIntegral peer) m
 
     insertRouteMap :: (BGPAttributeHash,BGPAttributes,IPPrefix) -> Maybe RouteMap -> Maybe RouteMap
-    insertRouteMap (hash,attrs,prefix) Nothing = Just $ Map.singleton hash (attrs,[prefix])
-    insertRouteMap (hash,attrs,prefix) (Just routeMap) = Just $ Map.alter (alterRouteMap (attrs,prefix)) hash routeMap
+    insertRouteMap (hash,attrs,prefix) Nothing = insertRouteMap (hash,attrs,prefix) (Just emptyRouteMap)
+    insertRouteMap (hash,attrs,IP4Prefix prefix) (Just (rm4,rm6)) = Just $ (Map.alter (alterRouteMap (attrs,prefix)) hash rm4,rm6)
+    insertRouteMap (hash,attrs,IP6Prefix prefix) (Just (rm4,rm6)) = Just $ (rm4,Map.alter (alterRouteMap (attrs,prefix)) hash rm6)
 
-    alterRouteMap :: (BGPAttributes,IPPrefix) -> Maybe (BGPAttributes,PrefixList) -> Maybe (BGPAttributes,PrefixList)
+    --alterRouteMap :: (BGPAttributes,IPPrefix) -> Maybe (BGPAttributes,PrefixList) -> Maybe (BGPAttributes,PrefixList)
     alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
     alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
 
+{-
 -- building intermediate form (het list -> tuple hom list)
 data DiscRouteMap = DiscRouteMap (Map.IntMap (BGPAttributes,[(IPv4,Word8)])) (Map.IntMap (BGPAttributes,[(IPv6,Word8)]))
 type DiscPeerMap = Map.IntMap DiscRouteMap
@@ -76,13 +84,13 @@ type RouteMap' = Map.IntMap (BGPAttributes,DiscPrefixList)
 type PeerMap' = Map.IntMap RouteMap'
 
 keys = Map.keys
-{-
-getPeerIndexMap :: [MRTRecord] -> PeerIndex -> DiscRouteMap
-getPeerIndexMap mrts px =
-    lookup' px (mrtToDiscPeerMap mrts)
-    where 
-    lookup' k m = fromMaybe 
--}
+
+--getPeerIndexMap :: [MRTRecord] -> PeerIndex -> DiscRouteMap
+--getPeerIndexMap mrts px =
+--    lookup' px (mrtToDiscPeerMap mrts)
+--    where 
+--    lookup' k m = fromMaybe 
+
 discriminatePeerMap :: PeerMap -> PeerMap'
 discriminatePeerMap = Map.map discriminateRouteMap
 discriminateRouteMap :: RouteMap -> RouteMap'
@@ -91,28 +99,31 @@ discriminateRouteMap = Map.map (\(attr,pfxs) -> (attr,discriminate pfxs))
     discriminate :: PrefixList -> DiscPrefixList
     discriminate l4@((IPv4 _,_) : ipx ) = IP4PrefixList $ map (\(ip4,l) -> (Data.IP.ipv4 ip4,l)) l4 
     discriminate l6@((IPv6 _,_) : ipx ) = IP6PrefixList $ map (\(ip6,l) -> (Data.IP.ipv6 ip6,l)) l6
+-}
 
 --
 -- show/report
 --
 
 reportPeerTable :: MRTRecord -> String
-reportPeerTable MRTlib.MRTPeerIndexTable{..} = "MRTPeerIndexTable { tdBGPID = " ++ show tdBGPID ++ " tdViewName = " ++ show tdViewName ++ "\n" ++
-                                               unlines (map show peerTable) ++ "\n}"
+reportPeerTable MRTlib.MRTPeerIndexTable{..} = "MRTPeerIndexTable { tdBGPID = " ++ show tdBGPID ++ " tdViewName = " ++ show tdViewName ++ "\n"
+                                               ++ show (length peerTable) ++ " peers in peer index table\n"
+                                               ++ unlines (map show peerTable) ++ "\n}"
 reportPeerTable _ = error "reportPeerTable only defined on MRTlib.MRTPeerIndexTable"
 
 reportPeerMap :: PeerMap -> String
-reportPeerMap m = -- "Report PeerMap\n" ++
-                show (length m) ++ " peers, " ++
-                show (maxr,maxp) ++ " = (max routes, max prefixes), " ++
-                show distinctPrefixGroups ++ " DistinctPrefixGroups, " ++
-                show pratio ++ " pratio\n"
+reportPeerMap m = "" -- "Report PeerMap\n" ++
+                 ++ show (length m) ++ " peers found in RIB\n"
+                -- ++ show (maxr,maxp) ++ " = (max routes, max prefixes), " ++
+                -- ++ show distinctPrefixGroups ++ " DistinctPrefixGroups, " ++
+                -- ++ show pratio ++ " pratio\n"
                 ++ concatMap reportRouteMap (Map.elems m)
-                ++ concatMap reportDiscRouteMap (Map.elems m)
-                where (maxr,maxp) = statsPeerMap m
-                      distinctPrefixGroups = countDistinctPrefixGroups m
-                      pratio = fromIntegral maxp / fromIntegral distinctPrefixGroups :: Float
+                -- ++ concatMap reportDiscRouteMap (Map.elems m)
+                --where (maxr,maxp) = statsPeerMap m
+                      --distinctPrefixGroups = countDistinctPrefixGroups m
+                      --pratio = fromIntegral maxp / fromIntegral distinctPrefixGroups :: Float
 
+{-
 reportDiscRouteMap :: RouteMap -> String
 reportDiscRouteMap m = "\nReport DiscRouteMap " ++
                 show (rc4,pc4) ++ " IP4 routes/prefixes " ++
@@ -121,18 +132,22 @@ reportDiscRouteMap m = "\nReport DiscRouteMap " ++
                 (rc4,pc4) = statsRouteMap m4
                 (rc6,pc6) = statsRouteMap m6
                 (DiscRouteMap m4 m6) = getDiscRouteMap m
+-}
 
 reportRouteMap :: RouteMap -> String
-reportRouteMap m = "\nReport RouteMap " ++
-                show (rc,pc) ++ " routes/prefixes "
+reportRouteMap (m4,m6) = "\nReport RouteMap " ++
+                show (rc4,pc4) ++ " IPv4 routes/prefixes " ++
+                show (rc6,pc6) ++ " IPv6 routes/prefixes "
                 where
-                (rc,pc) = statsRouteMap m
+                (rc4,pc4) = statsRouteMap m4
+                (rc6,pc6) = statsRouteMap m6
 
-statsPeerMap :: PeerMap -> (Int,Int)
+--statsPeerMap :: PeerMap -> (Int,Int)
 statsPeerMap m = foldl (\(a1,b1) (a2,b2) -> (max a1 a2, max b1 b2)) (0,0) (map statsRouteMap (Map.elems m))
 
 --statsRouteMap :: RouteMap -> (Int,Int)
 statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
+{-
 -- Prefix Analysis
 
 instance Data.Hashable.Hashable IP
@@ -177,3 +192,4 @@ countDistinct ix = length $ foldl f Map.empty ix where
     f m i = Map.alter g i m
     g Nothing = Just 1
     g (Just n) = Just (n+1)
+-}

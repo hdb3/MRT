@@ -11,9 +11,10 @@ main = do
     else do
         putStr $ show (length rib) ++ " records read "
         putStrLn $ reportPeerTable peerTable
+
         let map = mrtToPeerMap rib
-            discMap = getDiscPeerMap map
-            k = keys discMap
-        putStrLn $ "#keys, keys: " ++ show (length k,k)
+            -- discMap = getDiscPeerMap map
+            -- k = keys discMap
+        -- putStrLn $ "#keys, keys: " ++ show (length k,k)
         putStrLn $ reportPeerMap map
-        putStr $ reportDistance map
+        -- putStr $ reportDistance map
