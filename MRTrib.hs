@@ -1,8 +1,9 @@
-{-# LANGUAGE DataKinds,FlexibleInstances,RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric,DataKinds,FlexibleInstances,RecordWildCards #-}
 module MRTrib where
 
 import Data.IP
 import Data.Word 
+import GHC.Generics (Generic)
 import qualified Data.IntMap.Strict as Map
 import qualified Data.Hashable
 import FarmHash(hash64)
@@ -11,7 +12,11 @@ import Data.Maybe(fromMaybe)
 
 import MRTlib
 
-data IPPrefix = IP4Prefix IP4Prefix | IP6Prefix IP6Prefix deriving Show
+data IPPrefix = IP4Prefix IP4Prefix | IP6Prefix IP6Prefix deriving (Show,Generic)
+instance Data.Hashable.Hashable IPv4
+instance Data.Hashable.Hashable IPv6
+instance Data.Hashable.Hashable IPPrefix
+
 type PrefixList = [IPPrefix]
 type IP4Prefix = (IPv4,Word8)
 type IP4PrefixList = [IP4Prefix]
@@ -19,6 +24,7 @@ type IP6Prefix = (IPv6,Word8)
 type IP6PrefixList = [IP6Prefix]
 type BGPAttributeHash = Int
 type PrefixListHash = Int
+type PrefixListHashList = [Int]
 type PeerIndex = Word16
 type PeerMapInput = (PeerIndex, BGPAttributeHash,BGPAttributes,IPPrefix)
 type RouteMapv4 = Map.IntMap (BGPAttributes,IP4PrefixList)
