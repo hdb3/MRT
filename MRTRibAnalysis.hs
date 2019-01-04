@@ -86,6 +86,10 @@ showMaxCompare = unlines . map s where
 
 --  running this on my recent AMS RIPE IPv4 dataset, there are 26/32 within 6%, the next is at -57%.  Only 2 are within 1%. 14 fall within 3%. 5 are with 2%.
 -- so, depending on taste, an eta of 6, 3 or 2% would be sensible but different.  Hard coding 5% seems sensible.  But it will be interesting to study the differences!!!!!
+-- as an aside, we can reconstitute IPv4PeerTables with restricted components because the MRT peer data is hel as a value in the array alongside the RIBs....
+-- So,  building 'reFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable' is quite simple
+
+-- first, we will need to define a selection vector to apply to the array.....
 
 preFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable
 preFilterTable eta a = 
