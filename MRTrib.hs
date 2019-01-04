@@ -67,13 +67,13 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
 
     insertRouteMap :: (BGPAttributeHash,BGPAttributes,IPPrefix) -> Maybe RouteMap -> Maybe RouteMap
     insertRouteMap (hash,attrs,prefix) Nothing = insertRouteMap (hash,attrs,prefix) (Just emptyRouteMap)
-    insertRouteMap (hash,attrs,IP4Prefix prefix) (Just (rm4,rm6)) = Just $ (Map.alter (alterRouteMap (attrs,prefix)) hash rm4,rm6)
-    insertRouteMap (hash,attrs,IP6Prefix prefix) (Just (rm4,rm6)) = Just $ (rm4,Map.alter (alterRouteMap (attrs,prefix)) hash rm6)
+    insertRouteMap (hash,attrs,IP4Prefix prefix) (Just (rm4,rm6)) = Just (Map.alter (alterRouteMap (attrs,prefix)) hash rm4,rm6)
+    insertRouteMap (hash,attrs,IP6Prefix prefix) (Just (rm4,rm6)) = Just (rm4,Map.alter (alterRouteMap (attrs,prefix)) hash rm6)
 
     alterRouteMap (attrs,prefix) Nothing = Just (attrs,[prefix])
     alterRouteMap (_,prefix) (Just (attrs, prefixes)) = Just (attrs,prefix:prefixes)
 
-keys = Map.keys
+--keys = Map.keys
 
 --
 -- show/report
@@ -97,11 +97,12 @@ reportRouteMap (m4,m6) = "\nReport RouteMap " ++
                 (rc4,pc4) = statsRouteMap m4
                 (rc6,pc6) = statsRouteMap m6
 
-                statsPeerMap m = foldl (\(a1,b1) (a2,b2) -> (max a1 a2, max b1 b2)) (0,0) (map statsRouteMap (Map.elems m))
+                -- statsPeerMap m = foldl (\(a1,b1) (a2,b2) -> (max a1 a2, max b1 b2)) (0,0) (map statsRouteMap (Map.elems m))
                 statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
 
 getPeerTable :: [MRTRecord] -> PeerTable
 getPeerTable (mrt0:mrtx) = buildPeerTable mrt0 (mrtToPeerMap mrtx)
+getPeerTable [] = error "getPeerTable requires at least a MRT Peer Table Record"
 
 buildPeerTable :: MRTRecord -> PeerMap -> PeerTable
 buildPeerTable MRTlib.MRTPeerIndexTable{..} peerMap =
@@ -110,6 +111,7 @@ buildPeerTable MRTlib.MRTPeerIndexTable{..} peerMap =
     where
     al = length peerTable - 1
     peerLookup i = fromMaybe emptyRouteMap (Map.lookup (fromIntegral i) peerMap)
+buildPeerTable _ _ = error "buildPeerTable only valid on MRT Peer Index Table records"
 
 showPeerTable :: PeerTable -> String
 showPeerTable = unlines . map (\(ix,pte) -> show ix ++ ": " ++ showPeerTableEntry pte) . assocs
@@ -117,29 +119,32 @@ showPeerTable = unlines . map (\(ix,pte) -> show ix ++ ": " ++ showPeerTableEntr
     showPeerTableEntry PT{..} = "IPv4: " ++ show (statsRouteMap ptRibV4) ++ "  IPv6: " ++ show (statsRouteMap ptRibV6) ++ " : " ++ show ptPeer
     statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
 
+showStatsRouteMap :: Map.IntMap (a, [b]) -> String
 showStatsRouteMap m = show (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
-size a = (h -l + 1) where (l,h) = bounds a
+
+size :: (Ix a1, IArray a e, Num a1) => a a1 e -> a1
+size a = h -l + 1 where (l,h) = bounds a
 
 getIPv4PeerTable :: PeerTable -> IPv4PeerTable
 getIPv4PeerTable pt = listArray (0,fromIntegral $ length l - 1) l where
-    l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p r4 r6) -> (p,r4)) $ elems pt
+    l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p r4 _) -> (p,r4)) $ elems pt
 
 showIPv4PeerTable :: IPv4PeerTable -> String
 showIPv4PeerTable a = "IPv4 peers ("
-                      ++ ( show $ size a )
+                      ++ show ( size a )
                       ++ ")\n"
-                      ++ ( unlines $ map showIPv4PeerTableEntry $ assocs $ a)
+                      ++ unlines ( map showIPv4PeerTableEntry $ assocs a)
     where
     showIPv4PeerTableEntry (i,(p,r)) = show i ++ " " ++ show p ++ " " ++ showStatsRouteMap r
  
 getIPv6PeerTable :: PeerTable -> IPv6PeerTable
 getIPv6PeerTable pt = listArray (0,fromIntegral $ length l - 1) l where
-    l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p r4 r6) -> (p,r6)) $ elems pt
+    l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p _ r6) -> (p,r6)) $ elems pt
 
 showIPv6PeerTable :: IPv6PeerTable -> String
 showIPv6PeerTable a = "IPv6 peers ("
-                      ++ ( show $ size a )
+                      ++ show ( size a )
                       ++ ")\n"
-                      ++ ( unlines $ map showIPv6PeerTableEntry $ assocs $ a)
+                      ++ unlines ( map showIPv6PeerTableEntry $ assocs a)
     where
     showIPv6PeerTableEntry (i,(p,r)) = show i ++ " " ++ show p ++ " " ++ showStatsRouteMap r

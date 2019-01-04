@@ -1,10 +1,8 @@
-{-# LANGUAGE RecordWildCards #-}
 module Main where
 import MRTquest
 import MRTrib
 import MRTRibAnalysis
 
-oldcode = False
 main :: IO ()
 main = do
     (peerTable,rib) <- getMRTTableDumpV2

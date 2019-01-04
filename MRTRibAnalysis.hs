@@ -1,13 +1,13 @@
-{-# LANGUAGE DataKinds,FlexibleInstances,RecordWildCards #-}
+{-# LANGUAGE DataKinds,FlexibleInstances #-}
 module MRTRibAnalysis where
 
-import Data.IP
-import Data.Word 
+--import Data.IP
+--import Data.Word 
 import qualified Data.IntMap.Strict as Map
 import Data.Array.IArray
 import qualified Data.Hashable
 import Data.List((\\),union,intersect)
-import FarmHash(hash64)
+--import FarmHash(hash64)
 
 import MRTlib
 import MRTrib
@@ -28,21 +28,22 @@ prefixListHash = Data.Hashable.hash
 
 distance :: PrefixListHashList-> PrefixListHashList -> Int
 distance l1 l2 = length (diff l1 l2) where
-    diff a b = (union a b) \\ (intersect a b)
+    diff a b = union a b \\ intersect a b
 
+sortedDiff :: Ord a => [a] -> [a] -> [a] -> [a]
 sortedDiff acc [] [] = acc
 sortedDiff acc (a:ax) [] = sortedDiff (a:acc) ax []
 sortedDiff acc [] (b:bx) = sortedDiff (b:acc) bx []
 sortedDiff acc (a:ax) (b:bx) | a == b = sortedDiff acc ax bx
                              | a < b  = sortedDiff (a:acc) ax (b:bx)
                              | a > b  = sortedDiff (b:acc) (a:ax) bx
-
+sortedDiff _ _ _ = error "not posible?!"
 
 type PeerPrefixGroupHashTable = Array PeerIndex PrefixListHashList
 getPeerPrefixGroupHashTable :: IPv4PeerTable -> PeerPrefixGroupHashTable
 getPeerPrefixGroupHashTable = amap hashPeerTableEntry where
     hashPeerTableEntry :: (MRTPeer,RouteMapv4) -> PrefixListHashList
-    hashPeerTableEntry (peer,rm) = map (Data.Hashable.hash . snd) $ Map.elems rm 
+    hashPeerTableEntry (_,rm) = map (Data.Hashable.hash . snd) $ Map.elems rm 
 
 --reportDistance :: PeerMap -> String
 --showDistance t = unlines $ map show peerPairs
