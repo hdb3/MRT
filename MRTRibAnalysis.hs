@@ -1,13 +1,11 @@
 {-# LANGUAGE DataKinds,FlexibleInstances #-}
 module MRTRibAnalysis where
 
---import Data.IP
---import Data.Word 
 import qualified Data.IntMap.Strict as Map
 import Data.Array.IArray
 import qualified Data.Hashable
-import Data.List((\\),union,intersect,sort)
---import FarmHash(hash64)
+import Data.List((\\),union,intersect,sort,maximum)
+import Text.Printf
 
 import MRTlib
 import MRTrib
@@ -47,8 +45,6 @@ getPeerPrefixGroupHashTable = amap hashPeerTableEntry where
     hashPeerTableEntry :: (MRTPeer,RouteMapv4) -> PrefixListHashList
     hashPeerTableEntry (_,rm) = sort $ map (Data.Hashable.hash . snd) $ Map.elems rm 
 
---reportDistance :: PeerMap -> String
---showDistance t = unlines $ map show peerPairs
 showMetrics :: IPv4PeerTable -> String
 showMetrics = unlines . map show . getMetrics
 getMetrics :: IPv4PeerTable -> [((PeerIndex,PeerIndex),Int)]
@@ -59,25 +55,37 @@ getMetrics t = map calcMetric peerPairs
     peerPairs = [(i,j) | i <- [0 .. l-2], j <- [1 .. l-1],i<j]
     calcMetric (i,j) = ((i,j), distance (peers ! i) (peers ! j) )
 
-{- the histogram has too much data - we need only presence not count - and 'nub' can do that...
-countDistinct' :: [Int] -> Int
-countDistinct' ix = length $ foldl f Map.empty ix where
-    --type M = Map.IntMap Int
-    --f :: M -> Int -> M
-    -- f generates an (unordered) histogram from the input list (count of each distinct element)
-    f :: Map.IntMap Int -> Int -> Map.IntMap Int
-    f m i = Map.alter g i m
-    g Nothing = Just 1
-    g (Just n) = Just (n+1)
--}
---countDistinctPrefixGroups :: PeerMap -> Int
---countDistinctPrefixGroups = countDistinct . getPrefixListHashes where
---    getPrefixListHashes :: PeerMap -> [PrefixListHash]
---    getPrefixListHashes = concatMap ( map ( prefixListHash . snd ) . Map.elems ) . Map.elems
+-- Peer pre-selection
+-- Peers which have reasonably full route tables are of interest
+-- Reasonably full can be defined as being within a defined delta size of the largest
+--
+-- We will need to prepare a summary table, which should contain the numbers of paths and prefixes in each peer RIB...
+-- 'statsRouteMap' from MRTrib does this for each peer routemap
+-- so, getStats :: IPv4PeerTable -> Array PeerIndex (Int,Int), where (Int,Int) is the count of paths and routes respectiveley....:
+getStats :: IPv4PeerTable -> Array PeerIndex (Int,Int)
+getStats = amap ( statsRouteMap . snd )
 
---getPrefixLists :: PeerMap -> [PrefixList]
---getPrefixLists = concatMap getRouteMapPrefixLists . Map.elems
---    where
---    getRouteMapPrefixLists :: RouteMap -> [PrefixList]
---    getRouteMapPrefixLists  = map snd . Map.elems
+maxima :: Array PeerIndex (Int,Int) -> (Int,Int)
+maxima a = (ma,mb) where
+    ma = maximum $ map fst $ elems a
+    mb = maximum $ map snd $ elems a
 
+-- filtering the peer table for full size, requires a defintion of eta which is the permissible route count deficit
+-- so, interesting to look at the candidates in a sample, i.e. report the per peer counts as a perecntage of the respective maxima...
+-- a function to do this over a list of (Int,Int) give a 100% value of (Int,Int) looks like this:
+-- maxCompare :: (Int,Int) -> [(Int,Int)] -> [((Int,Int),(Float,Float))]
+
+maxCompare :: (Int,Int) -> [(Int,Int)] -> [((Int,Int),(Float,Float))]
+maxCompare (ma,mb) = map f where
+    f :: (Int,Int) -> ((Int,Int),(Float,Float))
+    f (a,b) = ((a,b),(1.0-fromIntegral a/fromIntegral ma,1.0-fromIntegral b/fromIntegral mb))
+
+showMaxCompare :: [((Int,Int),(Float,Float))] -> String
+showMaxCompare = unlines . map s where
+    s ((a,b),(da,db)) = printf "%6d %6d %4f %4f" a b (100*da) (100*db)
+
+--  running this on my recent AMS RIPE IPv4 dataset, there are 26/32 within 6%, the next is at -57%.  Only 2 are within 1%. 14 fall within 3%. 5 are with 2%.
+-- so, depending on taste, an eta of 6, 3 or 2% would be sensible but different.  Hard coding 5% seems sensible.  But it will be interesting to study the differences!!!!!
+
+preFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable
+preFilterTable eta a = 

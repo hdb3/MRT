@@ -119,8 +119,12 @@ showPeerTable = unlines . map (\(ix,pte) -> show ix ++ ": " ++ showPeerTableEntr
     showPeerTableEntry PT{..} = "IPv4: " ++ show (statsRouteMap ptRibV4) ++ "  IPv6: " ++ show (statsRouteMap ptRibV6) ++ " : " ++ show ptPeer
     statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
 
+statsRouteMap :: Map.IntMap (a, [b]) -> (Int,Int)
+statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
+
 showStatsRouteMap :: Map.IntMap (a, [b]) -> String
-showStatsRouteMap m = show (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
+showStatsRouteMap = show . statsRouteMap
+--showStatsRouteMap m = show (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
 
 size :: (Ix a1, IArray a e, Num a1) => a a1 e -> a1
 size a = h -l + 1 where (l,h) = bounds a
