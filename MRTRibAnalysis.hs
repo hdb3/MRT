@@ -90,6 +90,23 @@ showMaxCompare = unlines . map s where
 -- So,  building 'reFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable' is quite simple
 
 -- first, we will need to define a selection vector to apply to the array.....
+type Selector = [Bool]
+select :: Selector -> IPv4PeerTable -> IPv4PeerTable
+select s t = makePeerTable $ foldr f [] (zip s (elems t)) where
+    f (p,a) l = if p then a:l else l
+  
+tableSizeSelector :: Float -> [((Int,Int),(Float,Float))] -> Selector
+tableSizeSelector eta = map (\((_,_),(_,x)) -> eta > x)
+
+peerCountLimit :: Int -> [a] -> Selector
+peerCountLimit n l = take (length l) ( replicate n True ++ repeat False ) 
 
 preFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable
-preFilterTable eta a = 
+preFilterTable eta t = select s t
+    where
+    s = tableSizeSelector eta (maxCompare (maxima stats) (elems stats))
+    stats = getStats t
+    e = elems t
+
+capTable :: Int -> IPv4PeerTable -> IPv4PeerTable
+capTable n t = select (peerCountLimit n (indices t)) t
