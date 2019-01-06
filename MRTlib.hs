@@ -208,7 +208,7 @@ parsePrefixV4 = do
               | plen < 17  -> readPrefix2Byte
               | plen < 25  -> readPrefix3Byte
               | plen < 33  -> readPrefix4Byte
-    return (plen, fromHostAddress pfx)
+    return (plen, fromHostAddress $ byteSwap32 pfx)
     where
         readPrefix1Byte = do
             b0 <- anyWord8
