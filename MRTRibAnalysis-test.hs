@@ -20,6 +20,6 @@ main = do
         --let ipv6PeerTable = getIPv6PeerTable pt
         --putStrLn $ showIPv6PeerTable ipv6PeerTable
         --putStrLn $ showMetrics ipv4PeerTable
-        let v4table = capTable 4 $ preFilterTable 0.04 ipv4PeerTable
+        let v4table = capTable 99 $ preFilterTable 0.04 ipv4PeerTable
         putStrLn $ showIPv4PeerTable v4table
         putStrLn $ showMetrics v4table

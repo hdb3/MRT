@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric,DataKinds,FlexibleInstances,RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric,RecordWildCards #-}
 module MRTrib where
 
 import Data.IP
@@ -124,7 +124,6 @@ statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( leng
 
 showStatsRouteMap :: Map.IntMap (a, [b]) -> String
 showStatsRouteMap = show . statsRouteMap
---showStatsRouteMap m = show (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
 
 size :: (Ix a1, IArray a e, Num a1) => a a1 e -> a1
 size a = h -l + 1 where (l,h) = bounds a
@@ -132,12 +131,7 @@ size a = h -l + 1 where (l,h) = bounds a
 makePeerTable :: [a] -> Array PeerIndex a
 makePeerTable l = listArray (0,fromIntegral $ length l - 1) l
 
---ipV4PeerTable :: [(MRTPeer,RouteMapv4)] -> IPv4PeerTable
---ipV4PeerTable l = listArray (0,fromIntegral $ length l - 1) l
---ipV4PeerTable = makePeerTable
-
 getIPv4PeerTable :: PeerTable -> IPv4PeerTable
---getIPv4PeerTable pt = listArray (0,fromIntegral $ length l - 1) l where
 getIPv4PeerTable pt = makePeerTable l where
     l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p r4 _) -> (p,r4)) $ elems pt
 
@@ -151,7 +145,6 @@ showIPv4PeerTable a = "IPv4 peers ("
  
 getIPv6PeerTable :: PeerTable -> IPv6PeerTable
 getIPv6PeerTable pt = makePeerTable l where
---getIPv6PeerTable pt = listArray (0,fromIntegral $ length l - 1) l where
     l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p _ r6) -> (p,r6)) $ elems pt
 
 showIPv6PeerTable :: IPv6PeerTable -> String

@@ -2,7 +2,6 @@
 module Main where
 import qualified Data.ByteString as BS
 import qualified Data.IntMap.Strict as Map
-import Text.Printf
 import MRTlib
 import MRTXRib
 

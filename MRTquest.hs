@@ -61,4 +61,3 @@ mrtTypeCount  :: [MRTlib.MRTRecord] -> [(MRTTypes,Int)]
 mrtTypeCount mrtRecs = assocs arr where arr :: Array MRTTypes Int
                                         arr = accumArray (+) 0 bnds $ map (\mrt -> (identify mrt,1)) mrtRecs
                                         bnds = (minBound :: MRTTypes, maxBound :: MRTTypes)
--- mrtTypeCount mrtRecs = assocs $ accumArray (+) 0 bnds $ map (\mrt -> (identify mrt,1)) mrtRecs

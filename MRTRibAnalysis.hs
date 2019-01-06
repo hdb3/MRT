@@ -1,10 +1,9 @@
-{-# LANGUAGE DataKinds,FlexibleInstances #-}
 module MRTRibAnalysis where
 
 import qualified Data.IntMap.Strict as Map
 import Data.Array.IArray
 import qualified Data.Hashable
-import Data.List((\\),union,intersect,sort,maximum)
+import Data.List(sort,maximum)
 import Text.Printf
 
 import MRTlib
@@ -25,12 +24,10 @@ prefixListHash :: PrefixList -> PrefixListHash
 prefixListHash = Data.Hashable.hash
 
 distance :: PrefixListHashList-> PrefixListHashList -> Int
-distance l1 l2 = length (diff l1 l2) where
-    diff a b = sortedDiff a b
-    --diff a b = union a b \\ intersect a b
+distance l1 l2 = length (sortedDiff l1 l2)
 
 sortedDiff :: Ord a => [a] -> [a] -> [a]
-sortedDiff a b = sd [] a b where
+sortedDiff = sd [] where
     sd acc [] [] = acc
     sd acc (a:ax) [] = sd (a:acc) ax []
     sd acc [] (b:bx) = sd (b:acc) bx []
