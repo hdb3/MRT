@@ -36,21 +36,20 @@ sortedDiff = sd [] where
                          | a > b  = sd (b:acc) (a:ax) bx
     sd _ _ _ = error "not posible?!"
 
-type PeerPrefixGroupHashTable = Array PeerIndex PrefixListHashList
-getPeerPrefixGroupHashTable :: IPv4PeerTable -> PeerPrefixGroupHashTable
-getPeerPrefixGroupHashTable = amap hashPeerTableEntry where
-    hashPeerTableEntry :: (MRTPeer,RouteMapv4) -> PrefixListHashList
-    hashPeerTableEntry (_,rm) = sort $ map (Data.Hashable.hash . snd) $ Map.elems rm 
+getPeerPrefixGroupHashTable :: MRTRibV4 -> [PrefixListHashList]
+getPeerPrefixGroupHashTable = map hashPeerTableEntry where
+    hashPeerTableEntry :: (PeerIndex,MRTPeer,RouteMapv4) -> PrefixListHashList
+    hashPeerTableEntry (_,_,rm) = sort $ map (Data.Hashable.hash . snd) $ Map.elems rm 
 
-showMetrics :: IPv4PeerTable -> String
+showMetrics :: MRTRibV4 -> String
 showMetrics = unlines . map show . getMetrics
-getMetrics :: IPv4PeerTable -> [((PeerIndex,PeerIndex),Int)]
+getMetrics :: MRTRibV4 -> [((Int,Int),Int)]
 getMetrics t = map calcMetric peerPairs
     where
     peers = getPeerPrefixGroupHashTable t
-    l = fromIntegral $ size peers
+    l  = fromIntegral $ length peers
     peerPairs = [(i,j) | i <- [0 .. l-2], j <- [1 .. l-1],i<j]
-    calcMetric (i,j) = ((i,j), distance (peers ! i) (peers ! j) )
+    calcMetric (i,j) = ((i,j), distance (peers !! i) (peers !! j) )
 
 -- Peer pre-selection
 -- Peers which have reasonably full route tables are of interest
@@ -59,13 +58,15 @@ getMetrics t = map calcMetric peerPairs
 -- We will need to prepare a summary table, which should contain the numbers of paths and prefixes in each peer RIB...
 -- 'statsRouteMap' from MRTrib does this for each peer routemap
 -- so, getStats :: IPv4PeerTable -> Array PeerIndex (Int,Int), where (Int,Int) is the count of paths and routes respectiveley....:
-getStats :: IPv4PeerTable -> Array PeerIndex (Int,Int)
-getStats = amap ( statsRouteMap . snd )
 
-maxima :: Array PeerIndex (Int,Int) -> (Int,Int)
+type Stats = [(PeerIndex, (Int,Int))]
+getStats :: MRTRibV4 -> Stats
+getStats = map (\(px,_,x) -> (px,statsRouteMap x ))
+
+maxima :: Stats -> (Int,Int)
 maxima a = (ma,mb) where
-    ma = maximum $ map fst $ elems a
-    mb = maximum $ map snd $ elems a
+    ma = maximum $ map (fst .snd) a
+    mb = maximum $ map (snd . snd) a
 
 -- filtering the peer table for full size, requires a defintion of eta which is the permissible route count deficit
 -- so, interesting to look at the candidates in a sample, i.e. report the per peer counts as a perecntage of the respective maxima...
@@ -86,24 +87,10 @@ showMaxCompare = unlines . map s where
 -- as an aside, we can reconstitute IPv4PeerTables with restricted components because the MRT peer data is hel as a value in the array alongside the RIBs....
 -- So,  building 'reFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable' is quite simple
 
--- first, we will need to define a selection vector to apply to the array.....
-type Selector = [Bool]
-select :: Selector -> IPv4PeerTable -> IPv4PeerTable
-select s t = makePeerTable $ foldr f [] (zip s (elems t)) where
-    f (p,a) l = if p then a:l else l
-  
-tableSizeSelector :: Float -> [((Int,Int),(Float,Float))] -> Selector
-tableSizeSelector eta = map (\((_,_),(_,x)) -> eta > x)
+maxPrefixCount :: MRTRibV4 -> Int
+maxPrefixCount = maximum . map ( prefixCountRouteMap . third ) where third (_,_,x) = x
 
-peerCountLimit :: Int -> [a] -> Selector
-peerCountLimit n l = take (length l) ( replicate n True ++ repeat False ) 
-
-preFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable
-preFilterTable eta t = select s t
+preFilterTable :: Float -> MRTRibV4 -> MRTRibV4
+preFilterTable eta m = filter ( \(_,_,pfxs) -> (prefixCountRouteMap pfxs) > l) m
     where
-    s = tableSizeSelector eta (maxCompare (maxima stats) (elems stats))
-    stats = getStats t
-    e = elems t
-
-capTable :: Int -> IPv4PeerTable -> IPv4PeerTable
-capTable n t = select (peerCountLimit n (indices t)) t
+    l = ceiling $ (1.0 - eta) * ( fromIntegral $ maxPrefixCount m )
