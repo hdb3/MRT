@@ -139,23 +139,10 @@ size a = h -l + 1 where (l,h) = bounds a
 makePeerTable :: [a] -> Array PeerIndex a
 makePeerTable l = listArray (0,fromIntegral $ length l - 1) l
 
-<<<<<<< HEAD
--- before integrating the getPeerTable step....
---getMRTRibV4 :: PeerTable -> MRTRibV4
---getMRTRibV4 = map (\(a,(b,c))->(a,b,c)) . assocs . getIPv4PeerTable
-
 getMRTRibV4 :: [MRTRecord] -> [(PeerIndex, MRTPeer, RouteMapv4)]
 getMRTRibV4 = map (\(a,(b,c))->(a,b,c)) . assocs . getIPv4PeerTable . getPeerTable
 
 getIPv4PeerTable :: PeerTable -> IPv4PeerTable
-=======
---ipV4PeerTable :: [(MRTPeer,RouteMapv4)] -> IPv4PeerTable
---ipV4PeerTable l = listArray (0,fromIntegral $ length l - 1) l
---ipV4PeerTable = makePeerTable
-
-getIPv4PeerTable :: PeerTable -> IPv4PeerTable
---getIPv4PeerTable pt = listArray (0,fromIntegral $ length l - 1) l where
->>>>>>> 3e1799ec04ae93402c0fff7f83238185fa6ea6b1
 getIPv4PeerTable pt = makePeerTable l where
     l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p r4 _) -> (p,r4)) $ elems pt
 
@@ -169,10 +156,6 @@ showIPv4PeerTable a = "IPv4 peers ("
  
 getIPv6PeerTable :: PeerTable -> IPv6PeerTable
 getIPv6PeerTable pt = makePeerTable l where
-<<<<<<< HEAD
-=======
---getIPv6PeerTable pt = listArray (0,fromIntegral $ length l - 1) l where
->>>>>>> 3e1799ec04ae93402c0fff7f83238185fa6ea6b1
     l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p _ r6) -> (p,r6)) $ elems pt
 
 showIPv6PeerTable :: IPv6PeerTable -> String

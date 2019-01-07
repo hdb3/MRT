@@ -2,7 +2,6 @@ module Main where
 import MRTquest
 import MRTrib
 import MRTRibAnalysis
-import Data.Array.IArray(elems)
 
 main :: IO ()
 main = do
@@ -18,12 +17,7 @@ main = do
         putStrLn $ showMaxCompare $ maxCompare (maxima stats) (map snd stats)
         --let ipv6PeerTable = getIPv6PeerTable pt
         --putStrLn $ showIPv6PeerTable ipv6PeerTable
-<<<<<<< HEAD
-        putStrLn $ showMetrics ribDB
-        let v4table = take 99 $ preFilterTable 0.04 ribDB
-=======
-        --putStrLn $ showMetrics ipv4PeerTable
-        let v4table = capTable 4 $ preFilterTable 0.04 ipv4PeerTable
->>>>>>> 3e1799ec04ae93402c0fff7f83238185fa6ea6b1
+        --putStrLn $ showMetrics ribDB
+        let v4table = take 10 $ preFilterTable 0.02 ribDB
         putStrLn $ showIPv4PeerTable v4table
         putStrLn $ showMetrics v4table

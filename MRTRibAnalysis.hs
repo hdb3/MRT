@@ -87,7 +87,6 @@ showMaxCompare = unlines . map s where
 -- as an aside, we can reconstitute IPv4PeerTables with restricted components because the MRT peer data is hel as a value in the array alongside the RIBs....
 -- So,  building 'reFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable' is quite simple
 
-<<<<<<< HEAD
 maxPrefixCount :: MRTRibV4 -> Int
 maxPrefixCount = maximum . map ( prefixCountRouteMap . third ) where third (_,_,x) = x
 
@@ -95,26 +94,3 @@ preFilterTable :: Float -> MRTRibV4 -> MRTRibV4
 preFilterTable eta m = filter ( \(_,_,pfxs) -> (prefixCountRouteMap pfxs) > l) m
     where
     l = ceiling $ (1.0 - eta) * ( fromIntegral $ maxPrefixCount m )
-=======
--- first, we will need to define a selection vector to apply to the array.....
-type Selector = [Bool]
-select :: Selector -> IPv4PeerTable -> IPv4PeerTable
-select s t = makePeerTable $ foldr f [] (zip s (elems t)) where
-    f (p,a) l = if p then a:l else l
-  
-tableSizeSelector :: Float -> [((Int,Int),(Float,Float))] -> Selector
-tableSizeSelector eta = map (\((_,_),(_,x)) -> eta > x)
-
-peerCountLimit :: Int -> [a] -> Selector
-peerCountLimit n l = take (length l) ( replicate n True ++ repeat False ) 
-
-preFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable
-preFilterTable eta t = select s t
-    where
-    s = tableSizeSelector eta (maxCompare (maxima stats) (elems stats))
-    stats = getStats t
-    e = elems t
-
-capTable :: Int -> IPv4PeerTable -> IPv4PeerTable
-capTable n t = select (peerCountLimit n (indices t)) t
->>>>>>> 3e1799ec04ae93402c0fff7f83238185fa6ea6b1
