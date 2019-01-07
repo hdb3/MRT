@@ -58,6 +58,21 @@ instance Show MRTPeer where
 data RIBEntry = RIBEntry { rePeerIndex :: Word16 , reOriginatedTime :: Timestamp , reAttributes :: BGPAttributes } deriving Show
 data BGP4MPState = BGP4MPIdle | BGP4MPConnect | BGP4MPActive | BGP4MPOpenSent | BGP4MPOpenConfirm | BGP4MPEstablished deriving Show
 
+-- convenience function: getMRTTableDumpV2
+
+getMRTTableDumpV2 :: IO (MRTRecord,[MRTRecord]) -- first member is guaranteed to be MRTlib.MRTPeerIndexTable
+getMRTTableDumpV2 = do
+    mrtList <- getMRT
+    return $ validate mrtList
+    where
+    validate ( a@MRTPeerIndexTable{} : b) = (a,b)
+    validate _ = error "expected MRTPeerIndexTable as first record in RIB file"
+    getMRT = fmap mrtParse BS.getContents
+
+--
+-- Core attoparsec parser follows
+--
+
 mrtParse :: BS.ByteString -> [MRTRecord]
 mrtParse bs = mrtParse' (parse' bs) where
     parse' bs' = DAB.feed (DAB.parse rawMRTParse bs') BS.empty

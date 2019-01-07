@@ -1,5 +1,4 @@
 module Main where
-import MRTquest
 import MRTrib
 import MRTRibAnalysis
 
@@ -21,10 +20,3 @@ main = do
         let v4table = take 10 $ preFilterTable 0.02 ribDB
         putStrLn $ showIPv4PeerTable v4table
         putStrLn $ showMetrics v4table
-
-{-
-comparePeerStats rib  = do
-    let stats = getStats rib
-    putStrLn $ "max paths/prefixes is: " ++ show (maxima stats)
-    putStrLn $ showMaxCompare $ maxCompare (maxima stats) (map snd stats)
--}

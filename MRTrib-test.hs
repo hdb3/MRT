@@ -1,5 +1,4 @@
 module Main where
-import MRTquest
 import MRTrib
 
 main :: IO ()

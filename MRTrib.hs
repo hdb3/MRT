@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric,RecordWildCards #-}
-module MRTrib where
+module MRTrib(module MRTrib, getMRTTableDumpV2) where
 
 import Data.IP
 import Data.Word 
