@@ -1,5 +1,11 @@
-{-# LANGUAGE DeriveGeneric,RecordWildCards #-}
-module MRTrib(module MRTrib, getMRTTableDumpV2) where
+{-# LANGUAGE FlexibleInstances,DeriveGeneric,RecordWildCards #-}
+module MRTrib ( IP4Prefix,IP6Prefix
+              , prefixCountRouteMap,pathCountRouteMap,statsRouteMap,showStatsRouteMap
+              , getMRTRibV4,getMRTRibV6,showMRTRibV4,showMRTRibV6
+              , PrefixHash(..),PrefixListHashList,PeerIndex
+              , RouteMapv4,RouteMapv6
+              , MRTRibV4,MRTRibV6
+              , getMRTTableDumpV2) where
 
 import Data.IP
 import Data.Word 
@@ -16,6 +22,16 @@ data IPPrefix = IP4Prefix IP4Prefix | IP6Prefix IP6Prefix deriving (Show,Generic
 instance Data.Hashable.Hashable IPv4
 instance Data.Hashable.Hashable IPv6
 instance Data.Hashable.Hashable IPPrefix
+
+class PrefixHash a where
+    prefixHash :: a -> Int
+
+instance PrefixHash [IP4Prefix] where
+    prefixHash = Data.Hashable.hash
+
+instance PrefixHash [IP6Prefix] where
+    prefixHash = Data.Hashable.hash
+
 
 type PrefixList = [IPPrefix]
 type IP4Prefix = (IPv4,Word8)
@@ -36,6 +52,7 @@ type PeerMap = Map.IntMap RouteMap
 data PeerTableEntry = PT { ptPeer :: MRTPeer, ptRibV4 :: RouteMapv4, ptRibV6 :: RouteMapv6 }
 type PeerTable = Array PeerIndex PeerTableEntry
 type IPv4PeerTable = Array PeerIndex (MRTPeer,RouteMapv4)
+
 type MRTRibV4 = [(PeerIndex,MRTPeer,RouteMapv4)]
 type MRTRibV6 = [(PeerIndex,MRTPeer,RouteMapv6)]
 type IPv6PeerTable = Array PeerIndex (MRTPeer,RouteMapv6)
@@ -142,26 +159,29 @@ makePeerTable l = listArray (0,fromIntegral $ length l - 1) l
 getMRTRibV4 :: [MRTRecord] -> MRTRibV4
 getMRTRibV4 = map (\(a,(b,c))->(a,b,c)) . assocs . getIPv4PeerTable . getPeerTable
 
+getMRTRibV6 :: [MRTRecord] -> MRTRibV6
+getMRTRibV6 = map (\(a,(b,c))->(a,b,c)) . assocs . getIPv6PeerTable . getPeerTable
+
 getIPv4PeerTable :: PeerTable -> IPv4PeerTable
 getIPv4PeerTable pt = makePeerTable l where
     l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p r4 _) -> (p,r4)) $ elems pt
 
-showIPv4PeerTable :: MRTRibV4 -> String
-showIPv4PeerTable a = "IPv4 peers ("
+showMRTRibV4 :: MRTRibV4 -> String
+showMRTRibV4 a = "IPv4 peers ("
                       ++ show ( length a )
                       ++ ")\n"
-                      ++ unlines ( map showIPv4PeerTableEntry a)
+                      ++ unlines ( map showMRTRibV4Entry a)
     where
-    showIPv4PeerTableEntry (i,p,r) = show i ++ " " ++ show p ++ " " ++ showStatsRouteMap r
+    showMRTRibV4Entry (i,p,r) = show i ++ " " ++ show p ++ " " ++ showStatsRouteMap r
  
 getIPv6PeerTable :: PeerTable -> IPv6PeerTable
 getIPv6PeerTable pt = makePeerTable l where
     l = filter (\(_,r) -> 0 < Map.size r) $ map (\(PT p _ r6) -> (p,r6)) $ elems pt
 
-showIPv6PeerTable :: IPv6PeerTable -> String
-showIPv6PeerTable a = "IPv6 peers ("
-                      ++ show ( size a )
+showMRTRibV6 :: MRTRibV6 -> String
+showMRTRibV6 a = "IPv6 peers ("
+                      ++ show ( length a )
                       ++ ")\n"
-                      ++ unlines ( map showIPv6PeerTableEntry $ assocs a)
+                      ++ unlines ( map showMRTRibV6Entry a)
     where
-    showIPv6PeerTableEntry (i,(p,r)) = show i ++ " " ++ show p ++ " " ++ showStatsRouteMap r
+    showMRTRibV6Entry (i,p,r) = show i ++ " " ++ show p ++ " " ++ showStatsRouteMap r

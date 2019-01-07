@@ -27,10 +27,22 @@ a custom calculation over an ordered list can probably be done more efficiently 
 
 
 
-showMetrics :: MRTRibV4 -> String
+--class PrefixHash a where
+    --prefixHash :: a -> Int
+
+--instance PrefixHash [IP4Prefix] where
+    --prefixHash = Data.Hashable.hash
+
+--instance PrefixHash [IP6Prefix] where
+    --prefixHash = Data.Hashable.hash
+
+--type MRTRibV4 = [(PeerIndex,MRTPeer,RouteMapv4)]
+--type RouteMapv4 = Map.IntMap (BGPAttributes,IP4PrefixList)
+--showMetrics :: MRTRibV4 -> String
+showMetrics :: PrefixHash a =>  [(PeerIndex,MRTPeer,Map.IntMap (BGPAttributes,a))] -> String
 showMetrics = unlines . map show . getMetrics
 
-getMetrics :: MRTRibV4 -> [((Int,Int),Int)]
+--getMetrics :: MRTRibV4 -> [((Int,Int),Int)]
 getMetrics t = map calcMetric peerPairs
 
     where
@@ -40,10 +52,12 @@ getMetrics t = map calcMetric peerPairs
     peerPairs = [(i,j) | i <- [0 .. l-2], j <- [1 .. l-1],i<j]
     calcMetric (i,j) = ((i,j), distance (peers !! i) (peers !! j) )
 
-    getPeerPrefixGroupHashTable :: MRTRibV4 -> [PrefixListHashList]
+    --getPeerPrefixGroupHashTable :: MRTRibV4 -> [PrefixListHashList]
     getPeerPrefixGroupHashTable = map hashPeerTableEntry where
-        hashPeerTableEntry :: (PeerIndex,MRTPeer,RouteMapv4) -> PrefixListHashList
-        hashPeerTableEntry (_,_,rm) = sort $ map (Data.Hashable.hash . snd) $ Map.elems rm 
+        hashPeerTableEntry :: PrefixHash a => (PeerIndex,MRTPeer,Map.IntMap (BGPAttributes,a)) -> PrefixListHashList
+        --hashPeerTableEntry :: (PeerIndex,MRTPeer,RouteMapv4) -> PrefixListHashList
+        --hashPeerTableEntry (_,_,rm) = sort $ map (Data.Hashable.hash . snd) $ Map.elems rm 
+        hashPeerTableEntry (_,_,rm) = sort $ map (prefixHash . snd) $ Map.elems rm 
 
     distance :: PrefixListHashList-> PrefixListHashList -> Int
     distance l1 l2 = length (sortedDiff l1 l2)
@@ -73,7 +87,7 @@ type Stats = [(PeerIndex, (Int,Int))]
 -- a function to do this over a list of (Int,Int) give a 100% value of (Int,Int) looks like this:
 -- maxCompare :: (Int,Int) -> [(Int,Int)] -> [((Int,Int),(Float,Float))]
 
-comparePeerStats :: MRTRibV4 -> IO ()
+--comparePeerStats :: MRTRibV4 -> IO ()
 comparePeerStats rib  = do
     let stats = getStats rib
     putStrLn $ "max paths/prefixes is: " ++ show (maxima stats)
@@ -86,7 +100,7 @@ comparePeerStats rib  = do
         ma = maximum $ map (fst .snd) a
         mb = maximum $ map (snd . snd) a
 
-    getStats :: MRTRibV4 -> Stats
+    --getStats :: MRTRibV4 -> Stats
     getStats = map (\(px,_,x) -> (px,statsRouteMap x ))
 
     maxCompare :: (Int,Int) -> [(Int,Int)] -> [((Int,Int),(Float,Float))]
@@ -103,13 +117,13 @@ comparePeerStats rib  = do
 -- so, depending on taste, an eta of 6, 3 or 2% would be sensible but different.  Hard coding 5% seems sensible.  But it will be interesting to study the differences!!!!!
 -- as an aside, we can reconstitute IPv4PeerTables with restricted components because the MRT peer data is hel as a value in the array alongside the RIBs....
 -- So,  building 'reFilterTable :: Float -> IPv4PeerTable -> IPv4PeerTable' is quite simple
-maxPathCount :: MRTRibV4 -> Int
+--maxPathCount :: MRTRibV4 -> Int
 maxPathCount = maximum . map ( pathCountRouteMap . third ) where third (_,_,x) = x
 
-maxPrefixCount :: MRTRibV4 -> Int
+--maxPrefixCount :: MRTRibV4 -> Int
 maxPrefixCount = maximum . map ( prefixCountRouteMap . third ) where third (_,_,x) = x
 
-preFilterTable :: Float -> MRTRibV4 -> MRTRibV4
+--preFilterTable :: Float -> MRTRibV4 -> MRTRibV4
 preFilterTable eta m = filter ( \(_,_,pfxs) -> prefixCountRouteMap pfxs > l) m
     where
     l = ceiling $ (1.0 - eta) * fromIntegral ( maxPrefixCount m )
