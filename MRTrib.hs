@@ -1,8 +1,8 @@
-{-# LANGUAGE FlexibleInstances,DeriveGeneric,RecordWildCards #-}
+{-# LANGUAGE LiberalTypeSynonyms,FlexibleInstances,DeriveGeneric,RecordWildCards #-}
 module MRTrib ( IP4Prefix,IP6Prefix
               , prefixCountRouteMap,pathCountRouteMap,statsRouteMap,showStatsRouteMap
               , getMRTRibV4,getMRTRibV6,showMRTRibV4,showMRTRibV6
-              , PrefixHash(..),PrefixListHashList,PeerIndex
+              , MRTRib,Rib,PrefixHash(..),PrefixListHashList,PeerIndex
               , RouteMapv4,RouteMapv6
               , MRTRibV4,MRTRibV6
               , getMRTTableDumpV2) where
@@ -25,21 +25,24 @@ instance Data.Hashable.Hashable IPPrefix
 
 class PrefixHash a where
     prefixHash :: a -> Int
+    prefixShow :: a -> String
 
 instance PrefixHash [IP4Prefix] where
     prefixHash = Data.Hashable.hash
+    prefixShow = show
 
 instance PrefixHash [IP6Prefix] where
     prefixHash = Data.Hashable.hash
+    prefixShow = show
 
+type Rib a = [(PeerIndex,MRTPeer,Map.IntMap (BGPAttributes,a))]
+type MRTRib a = [(PeerIndex, MRTPeer, Map.IntMap (BGPAttributes, [a]))]
 
-type PrefixList = [IPPrefix]
 type IP4Prefix = (IPv4,Word8)
 type IP4PrefixList = [IP4Prefix]
 type IP6Prefix = (IPv6,Word8)
 type IP6PrefixList = [IP6Prefix]
 type BGPAttributeHash = Int
-type PrefixListHash = Int
 type PrefixListHashList = [Int]
 type PeerIndex = Word16
 type PeerMapInput = (PeerIndex, BGPAttributeHash,BGPAttributes,IPPrefix)
@@ -94,49 +97,18 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
 
 --keys = Map.keys
 
---
--- show/report
---
-
-reportPeerTable :: MRTRecord -> String
-reportPeerTable MRTlib.MRTPeerIndexTable{..} = "MRTPeerIndexTable { tdBGPID = " ++ show tdBGPID ++ " tdViewName = " ++ show tdViewName ++ "\n"
-                                               ++ show (length peerTable) ++ " peers in peer index table\n"
-                                               ++ unlines (map show peerTable) ++ "\n}"
-reportPeerTable _ = error "reportPeerTable only defined on MRTlib.MRTPeerIndexTable"
-
-reportPeerMap :: PeerMap -> String
-reportPeerMap m = show (length m) ++ " peers found in RIB\n"
-                  ++ concatMap reportRouteMap (Map.elems m)
-
-reportRouteMap :: RouteMap -> String
-reportRouteMap (m4,m6) = "\nReport RouteMap " ++
-                show (rc4,pc4) ++ " IPv4 routes/prefixes " ++
-                show (rc6,pc6) ++ " IPv6 routes/prefixes "
-                where
-                (rc4,pc4) = statsRouteMap m4
-                (rc6,pc6) = statsRouteMap m6
-
-                -- statsPeerMap m = foldl (\(a1,b1) (a2,b2) -> (max a1 a2, max b1 b2)) (0,0) (map statsRouteMap (Map.elems m))
-                statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
-
 getPeerTable :: [MRTRecord] -> PeerTable
+getPeerTable [] = error "getPeerTable requires at least a MRT Peer Table Record" 
 getPeerTable (mrt0:mrtx) = buildPeerTable mrt0 (mrtToPeerMap mrtx)
-getPeerTable [] = error "getPeerTable requires at least a MRT Peer Table Record"
-
-buildPeerTable :: MRTRecord -> PeerMap -> PeerTable
-buildPeerTable MRTlib.MRTPeerIndexTable{..} peerMap =
-    array (0, fromIntegral al)
-          [ (fromIntegral i, PT (peerTable !! i) (fst $ peerLookup i) (snd $ peerLookup i)) | i <- [0..al]]
     where
-    al = length peerTable - 1
-    peerLookup i = fromMaybe emptyRouteMap (Map.lookup (fromIntegral i) peerMap)
-buildPeerTable _ _ = error "buildPeerTable only valid on MRT Peer Index Table records"
-
-showPeerTable :: PeerTable -> String
-showPeerTable = unlines . map (\(ix,pte) -> show ix ++ ": " ++ showPeerTableEntry pte) . assocs
-    where
-    showPeerTableEntry PT{..} = "IPv4: " ++ show (statsRouteMap ptRibV4) ++ "  IPv6: " ++ show (statsRouteMap ptRibV6) ++ " : " ++ show ptPeer
-    statsRouteMap m = (length m, prefixCount m) where prefixCount = sum . map ( length . snd ) . Map.elems
+    buildPeerTable :: MRTRecord -> PeerMap -> PeerTable
+    buildPeerTable MRTlib.MRTPeerIndexTable{..} peerMap =
+        array (0, fromIntegral al)
+              [ (fromIntegral i, PT (peerTable !! i) (fst $ peerLookup i) (snd $ peerLookup i)) | i <- [0..al]]
+        where
+        al = length peerTable - 1
+        peerLookup i = fromMaybe emptyRouteMap (Map.lookup (fromIntegral i) peerMap)
+    buildPeerTable _ _ = error "buildPeerTable only valid on MRT Peer Index Table records"
 
 prefixCountRouteMap :: Map.IntMap (a, [b]) -> Int
 prefixCountRouteMap = sum . map ( length . snd ) . Map.elems
@@ -149,9 +121,6 @@ statsRouteMap m = (pathCountRouteMap m, prefixCountRouteMap m)
 
 showStatsRouteMap :: Map.IntMap (a, [b]) -> String
 showStatsRouteMap = show . statsRouteMap
-
-size :: (Ix a1, IArray a e, Num a1) => a a1 e -> a1
-size a = h -l + 1 where (l,h) = bounds a
 
 makePeerTable :: [a] -> Array PeerIndex a
 makePeerTable l = listArray (0,fromIntegral $ length l - 1) l
