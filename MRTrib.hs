@@ -139,7 +139,7 @@ size a = h -l + 1 where (l,h) = bounds a
 makePeerTable :: [a] -> Array PeerIndex a
 makePeerTable l = listArray (0,fromIntegral $ length l - 1) l
 
-getMRTRibV4 :: [MRTRecord] -> [(PeerIndex, MRTPeer, RouteMapv4)]
+getMRTRibV4 :: [MRTRecord] -> MRTRibV4
 getMRTRibV4 = map (\(a,(b,c))->(a,b,c)) . assocs . getIPv4PeerTable . getPeerTable
 
 getIPv4PeerTable :: PeerTable -> IPv4PeerTable

@@ -2,7 +2,6 @@ module Main where
 import MRTquest
 import MRTrib
 
-oldcode = False
 main :: IO ()
 main = do
     (peerTable,rib) <- getMRTTableDumpV2
@@ -11,11 +10,11 @@ main = do
     else do
         putStr $ show (length rib) ++ " records read "
         --putStrLn $ reportPeerTable peerTable
-        let map = mrtToPeerMap rib
+        --let map = mrtToPeerMap rib
         --putStrLn $ reportPeerMap map
         let pt = getPeerTable (peerTable:rib)
         -- putStrLn $ showPeerTable pt
-        let ipv4PeerTable = getIPv4PeerTable pt
+        let ipv4PeerTable = getMRTRibV4 (peerTable:rib)
         putStrLn $ showIPv4PeerTable ipv4PeerTable
         let ipv6PeerTable = getIPv6PeerTable pt
         putStrLn $ showIPv6PeerTable ipv6PeerTable
