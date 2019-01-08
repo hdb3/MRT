@@ -9,8 +9,8 @@ import MRTrib
 newtype PrefixRib = PR (Map.IntMap PrefixListHash)
 newtype PrefixCache = PC (Map.IntMap IP4PrefixList)
 
-lookup :: (PrefixRib, PrefixCache) -> (IP4PrefixList,PrefixListHash) -> [Int]
-lookup (PR pr, PC pc) (pl,plh) = if isJust $ Map.lookup plh pc then [length pl] else reduce $ map ((flip Map.lookup) pr . v4hash) pl where
+lookup :: (PrefixRib, PrefixCache) -> (IP4PrefixList,PrefixListHash) -> Maybe [Int]
+lookup (PR pr, PC pc) (pl,plh) = if isJust $ Map.lookup plh pc then Nothing else Just $ reduce $ map ((flip Map.lookup) pr . v4hash) pl where
     reduce :: [Maybe Int] -> [Int]
     reduce = sort . map length . group . sort . catMaybes
 
