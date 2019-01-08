@@ -1,12 +1,16 @@
 {-# LANGUAGE LiberalTypeSynonyms,FlexibleInstances,DeriveGeneric,RecordWildCards #-}
 module MRTrib ( IP4Prefix,IP6Prefix
+              , IP4PrefixList, IP6PrefixList
+              , PrefixListHash, PrefixListHashList
               , prefixCountRouteMap,pathCountRouteMap,statsRouteMap,showStatsRouteMap
               , getMRTRibV4,getMRTRibV6,showMRTRibV4,showMRTRibV6
-              , MRTRib,Rib,PrefixHash(..),PrefixListHashList,PeerIndex
+              , MRTRib,Rib,PrefixHash(..),PeerIndex
               , RouteMapv4,RouteMapv6
               , MRTRibV4,MRTRibV6
-              , getMRTTableDumpV2) where
+              , getMRTTableDumpV2
+              , v4hash, fromV4hash, v6hash, fromV6hash) where
 
+import Data.Bits
 import Data.IP
 import Data.Word 
 import GHC.Generics (Generic)
@@ -22,6 +26,29 @@ data IPPrefix = IP4Prefix IP4Prefix | IP6Prefix IP6Prefix deriving (Show,Generic
 instance Data.Hashable.Hashable IPv4
 instance Data.Hashable.Hashable IPv6
 instance Data.Hashable.Hashable IPPrefix
+
+
+v4hash :: IP4Prefix -> Int
+v4hash (ip,l) = let w64 x = fromIntegral x :: Word64 in fromIntegral $ unsafeShiftL (w64 l) 32 .|. w64 ( byteSwap32 $ toHostAddress ip)
+
+fromV4hash :: Int -> IP4Prefix
+fromV4hash h = ( fromHostAddress $ byteSwap32 $ fromIntegral $ 0xffffffff .&. h' , fromIntegral $ unsafeShiftR h' 32 ) where h' = fromIntegral h :: Word64
+
+fromV6hash :: Int -> IP6Prefix
+fromV6hash h = ( fromHostAddress64 $ 0xffffffffffffff .&. h' , fromIntegral $ unsafeShiftR h' 56)
+    where
+    h' = fromIntegral h :: Word64
+    fromHostAddress64 x = fromHostAddress6 (w0,w1,0,0) where
+        w0 = fromIntegral $ unsafeShiftR x 32
+        w1 = fromIntegral $ x .&. 0xffffffff
+
+v6hash :: IP6Prefix -> Int
+v6hash (ip,l) | l < 57 = fromIntegral $ unsafeShiftL (w64 l) 56 .|. toHostAddress64 ip
+            -- | otherwise = fromIntegral $ asWord64 $ hash64WithSeed (w64 l) (toHostAddress64 ip) 
+              | otherwise = error $ "cant' handle IPv6 > /56: " ++ show l ++ "/" ++ show ip
+    where
+    w64 x = fromIntegral x :: Word64
+    toHostAddress64 x = let (w0,w1,_,_) = toHostAddress6 x in unsafeShiftL (w64 w0) 32 .|. w64 w1
 
 class PrefixHash a where
     prefixHash :: a -> Int
@@ -43,7 +70,8 @@ type IP4PrefixList = [IP4Prefix]
 type IP6Prefix = (IPv6,Word8)
 type IP6PrefixList = [IP6Prefix]
 type BGPAttributeHash = Int
-type PrefixListHashList = [Int]
+type PrefixListHash = Int
+type PrefixListHashList = [PrefixListHash]
 type PeerIndex = Word16
 type PeerMapInput = (PeerIndex, BGPAttributeHash,BGPAttributes,IPPrefix)
 type RouteMapv4 = Map.IntMap (BGPAttributes,IP4PrefixList)

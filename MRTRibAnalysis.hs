@@ -16,7 +16,7 @@ import MRTrib
 -- Prefix Analysis
 
 {-
-This module compares pairs of peers based on presence of distinct prefix groups
+This function (showMetrics/getMetrics) compares pairs of peers based on presence of distinct prefix groups
 'reportDistance :: PeerMap -> String' applies 'show distance' to every candidate peer pair
 'distance' represents a metric over groups of prefix lists - it is the number of prefix groups which are present in only one of a pair of group lists
 'distance' is the count of the set A // B where '//' is the (symmetric) set operation (A ∩ B) - (A ∪ B)
