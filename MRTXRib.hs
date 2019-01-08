@@ -47,12 +47,12 @@ peerRepRIB = Map.map getPeerRep
                               | otherwise = error $ "getPeerRep only defined for peerIdices < 64: " ++ show rePeerIndex
 
 showRawRIBAssoc :: (Int,[RIBEntry]) -> String
-showRawRIBAssoc (prefix,ribEntrys) = show ip ++ "/" ++ show l ++ " - " ++ show (length ribEntrys) where (ip,l) = fromV4hash prefix
+showRawRIBAssoc (prefix,ribEntrys) = show ip ++ "/" ++ show l ++ " - " ++ show (length ribEntrys) where (ip,l) = v4unhash prefix
 
 showIPv4PfxHash :: Int -> String
-showIPv4PfxHash prefix = show ip ++ "/" ++ show l where (ip,l) = fromV4hash prefix
+showIPv4PfxHash prefix = show ip ++ "/" ++ show l where (ip,l) = v4unhash prefix
 
 showPeerRep :: (Int,Word64) -> String
-showPeerRep (prefix,bitMap) = show ip ++ "/" ++ show l ++ " - " ++ printf "%08x" bitMap where (ip,l) = fromV4hash prefix
+showPeerRep (prefix,bitMap) = show ip ++ "/" ++ show l ++ " - " ++ printf "%08x" bitMap where (ip,l) = v4unhash prefix
 checkPeerRepRIB :: PeerRepRIB -> IP4Prefix -> PeerIndex -> Bool
 checkPeerRepRIB rib pfx px | 64 > px = testBit (fromJust $ Map.lookup (v4hash pfx) rib) (fromIntegral px) 

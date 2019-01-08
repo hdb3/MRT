@@ -8,7 +8,7 @@ module MRTrib ( IP4Prefix,IP6Prefix
               , RouteMapv4,RouteMapv6
               , MRTRibV4,MRTRibV6
               , getMRTTableDumpV2
-              , v4hash, fromV4hash, v6hash, fromV6hash) where
+              , v4hash, v4unhash, v6hash, v6unhash) where
 
 import Data.Bits
 import Data.IP
@@ -31,11 +31,11 @@ instance Data.Hashable.Hashable IPPrefix
 v4hash :: IP4Prefix -> Int
 v4hash (ip,l) = let w64 x = fromIntegral x :: Word64 in fromIntegral $ unsafeShiftL (w64 l) 32 .|. w64 ( byteSwap32 $ toHostAddress ip)
 
-fromV4hash :: Int -> IP4Prefix
-fromV4hash h = ( fromHostAddress $ byteSwap32 $ fromIntegral $ 0xffffffff .&. h' , fromIntegral $ unsafeShiftR h' 32 ) where h' = fromIntegral h :: Word64
+v4unhash :: Int -> IP4Prefix
+v4unhash h = ( fromHostAddress $ byteSwap32 $ fromIntegral $ 0xffffffff .&. h' , fromIntegral $ unsafeShiftR h' 32 ) where h' = fromIntegral h :: Word64
 
-fromV6hash :: Int -> IP6Prefix
-fromV6hash h = ( fromHostAddress64 $ 0xffffffffffffff .&. h' , fromIntegral $ unsafeShiftR h' 56)
+v6unhash :: Int -> IP6Prefix
+v6unhash h = ( fromHostAddress64 $ 0xffffffffffffff .&. h' , fromIntegral $ unsafeShiftR h' 56)
     where
     h' = fromIntegral h :: Word64
     fromHostAddress64 x = fromHostAddress6 (w0,w1,0,0) where
