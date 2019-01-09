@@ -5,6 +5,7 @@ module MRTRibAnalysis ( showMetrics
                       , maxPathCount
                       , maxPrefixCount
                       , preFilterTable
+                      , pairs
                       ) where
 
 import qualified Data.IntMap.Strict as Map
@@ -24,6 +25,10 @@ a custom calculation over an ordered list can probably be done more efficiently 
 
 -}
 
+
+pairs ::  MRTRib a -> [(Peer a,Peer a)]
+pairs peers = let l = length peers
+    in [(peers !! i ,peers !! j) | i <- [0 .. l-2], j <- [1 .. l-1],i<j]
 
 showMetrics :: PrefixHash a => Rib a -> String
 showMetrics = unlines . map show . getMetrics

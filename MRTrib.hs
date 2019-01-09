@@ -4,7 +4,7 @@ module MRTrib ( IP4Prefix,IP6Prefix
               , PrefixListHash, PrefixListHashList
               , prefixCountRouteMap,pathCountRouteMap,statsRouteMap,showStatsRouteMap
               , getMRTRibV4,getMRTRibV6,showMRTRibV4,showMRTRibV6
-              , MRTRib,Rib,PrefixHash(..),PeerIndex
+              , Peer,MRTRib,Rib,PrefixHash(..),PeerIndex
               , RouteMapv4,RouteMapv6
               , MRTRibV4,MRTRibV6
               , getMRTTableDumpV2
@@ -64,6 +64,9 @@ instance PrefixHash [IP6Prefix] where
     prefixHash = Data.Hashable.hash
     prefixShow = show
 
+-- these are really RIB sets, not RIBs - should redfine to allow 'Rib' to be used in a more meaningful way
+--     the two variants are required for reasons i do not understand - in some cases the type signature of Rib is rejected on some functions
+type Peer a = (PeerIndex,MRTPeer,Map.IntMap (BGPAttributes,[a]))
 type Rib a = [(PeerIndex,MRTPeer,Map.IntMap (BGPAttributes,a))]
 type MRTRib a = [(PeerIndex, MRTPeer, Map.IntMap (BGPAttributes, [a]))]
 
