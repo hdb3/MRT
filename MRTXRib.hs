@@ -8,7 +8,6 @@ Two Ribs are generated - IPv4 and IPv6.
 Useful derived RIBs can contain e.g. a bit map represnting the peer indices which refernce a given prefix
 -}
 import Data.Maybe(fromJust)
-import Data.IP
 import Data.Bits
 import Data.Word 
 import qualified Data.IntMap.Strict as Map

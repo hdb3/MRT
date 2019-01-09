@@ -10,7 +10,7 @@ newtype PrefixRib = PR (Map.IntMap PrefixListHash)
 newtype PrefixCache = PC (Map.IntMap IP4PrefixList)
 
 lookup :: (PrefixRib, PrefixCache) -> (IP4PrefixList,PrefixListHash) -> Maybe [Int]
-lookup (PR pr, PC pc) (pl,plh) = if isJust $ Map.lookup plh pc then Nothing else Just $ reduce $ map ((flip Map.lookup) pr . v4hash) pl where
+lookup (PR pr, PC pc) (pl,plh) = if isJust $ Map.lookup plh pc then Nothing else Just $ reduce $ map (flip Map.lookup pr . v4hash) pl where
     reduce :: [Maybe Int] -> [Int]
     -- reduce takes a list of (probably repeated) hashes and generates a list of small integers which count identical elements
     --    the sum of the list is the length of the input list

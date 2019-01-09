@@ -36,7 +36,7 @@ doRIBv6 ribDB6 = do
 extendedMetrics ribDB = do
     putStrLn "extendedMetrics"
     putStrLn "(n , empty , subset , superset , multiple , multiple/partial)"
-    let abx = pairs $ take 99 $ preFilterTable 0.02 ribDB
+    let abx = pairs $ take 99 $ preFilterTable 0.03 ribDB
     mapM_ pairExtendedMetrics abx
     where
     pairExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = do
