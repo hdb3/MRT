@@ -1,6 +1,7 @@
 {-# LANGUAGE LiberalTypeSynonyms #-}
 module PrefixGroupMetrics where
 
+import Text.Printf
 import qualified Data.IntMap.Strict as Map
 import Data.Maybe(isJust,catMaybes)
 import Data.List(sort,group)
@@ -21,9 +22,6 @@ buildRIB prefixLists = (buildPrefixRib prefixRibItems, buildPrefixCache prefixCa
     where
     prefixRibItems :: [(IP4PrefixHash,PrefixListHash)]
     prefixRibItems = concatMap (\prefixList -> map (\prefix -> (v4hash prefix, prefixHash prefixList)) prefixList) prefixLists
-    ---prefixRibItems = concatMap f prefixLists
-    ---f :: IP4PrefixList -> [(IP4PrefixHash,PrefixListHash)]
-    ---f pl = map (\prefix -> (v4hash prefix, prefixHash pl)) pl
     buildPrefixRib :: [(IP4PrefixHash,PrefixListHash)] -> PrefixRib
     buildPrefixRib = PR . Map.fromList
 
@@ -36,17 +34,25 @@ fromRouteMapv4 :: RouteMapv4 -> [IP4PrefixList]
 fromRouteMapv4 = Map.elems . Map.map snd
 
 compareRouteMapv4 :: RouteMapv4 -> RouteMapv4 -> String
-compareRouteMapv4 a b = show $ compareLLists (fromRouteMapv4 a) (fromRouteMapv4 b)
+compareRouteMapv4 a b = "(" ++ showAs ra ++ " , " ++ showAs rb ++ " )   " ++ show (ra,rb)
+    where
+    showAs = showAsSummary
+    (ra,rb) = compareLLists (fromRouteMapv4 a) (fromRouteMapv4 b)
+    showAsPercentage (a0,a1,a2,a3,a4,a5) = printf "(%5.2f %5.2f %5.2f %5.2f %5.2f %5.2f" (sp a0) (sp a1) (sp a2) (sp a3) (sp a4) (sp a5) :: String
+        where
+        sp n = 100.0 * ( fromIntegral n / fromIntegral (a0+a1+a2+a3+a4+a5)) :: Float
+    showAsSummary (a0,a1,a2,a3,a4,a5) = printf "(%5.2f %5.2f %5.2f" (sp a0) (sp (a3+a4)) (sp (a1+a2+a5)) :: String
+        where
+        sp n = 100.0 * ( fromIntegral n / fromIntegral (a0+a1+a2+a3+a4+a5)) :: Float
 
 compareLLists :: [IP4PrefixList] -> [IP4PrefixList] -> ((Int,Int,Int,Int,Int,Int),(Int,Int,Int,Int,Int,Int))
---compareLLists _ _ = ""
 compareLLists a b = (compareLList b a , compareLList a b)
     where
     addT (a0,a1,a2,a3,a4,a5) (b0,b1,b2,b3,b4,b5) = (a0+b0,a1+b1,a2+b2,a3+b3,a4+b4,a5+b5)
 
     compareLList :: [IP4PrefixList] -> [IP4PrefixList] -> (Int,Int,Int,Int,Int,Int)
-    compareLList a b = foldl f empty b where
-        rib = buildRIB a
+    compareLList c d = foldl f empty d where
+        rib = buildRIB c
         f acc x = acc `addT` comparePrefix x 
         comparePrefix  :: IP4PrefixList -> (Int,Int,Int,Int,Int,Int)
         comparePrefix x = encode (length x) $ PrefixGroupMetrics.lookup rib (x, prefixHash x)
@@ -54,7 +60,7 @@ compareLLists a b = (compareLList b a , compareLList a b)
     encode :: Int -> Maybe [Int] -> (Int,Int,Int,Int,Int,Int)
     encode _ Nothing = complete
     encode _ (Just []) = none
-    encode l (Just [a]) | l == a = superset
+    encode l (Just [x]) | l == x = superset
                         | otherwise = subset
     encode l (Just ax) | l == sum ax = multiple
                        | otherwise = multiplePartial

@@ -1,4 +1,5 @@
 module Main where
+import Text.Printf
 import Control.Monad(mapM_)
 import MRTrib
 import MRTRibAnalysis
@@ -34,10 +35,9 @@ doRIBv6 ribDB6 = do
         putStrLn $ showMetrics v6table
 
 extendedMetrics ribDB = do
-    putStrLn "extendedMetrics"
+    let validTables = preFilterTable 0.03 ribDB
+    putStrLn $ "extendedMetrics (sample set size " ++ show ( length validTables) ++ ")"
     putStrLn "(n , empty , subset , superset , multiple , multiple/partial)"
-    let abx = pairs $ take 99 $ preFilterTable 0.03 ribDB
-    mapM_ pairExtendedMetrics abx
+    mapM_ showExtendedMetrics (pairs validTables)
     where
-    pairExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = do
-    putStrLn $ show (pi0,pi1) ++ " - " ++ compareRouteMapv4 m0 m1
+    showExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = putStrLn $ printf "(%2d,%2d) " pi0 pi1  ++ compareRouteMapv4 m0 m1
