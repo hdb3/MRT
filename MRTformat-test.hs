@@ -1,8 +1,7 @@
 module Main where
 import qualified Data.ByteString as BS
 import Control.Monad(mapM_)
-import MRTlib
-
+import MRTformat
 
 main :: IO ()
 main = do

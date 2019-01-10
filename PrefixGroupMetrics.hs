@@ -1,4 +1,3 @@
-{-# LANGUAGE LiberalTypeSynonyms #-}
 module PrefixGroupMetrics where
 
 import Text.Printf

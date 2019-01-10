@@ -1,5 +1,5 @@
 {-# LANGUAGE MultiWayIf,RecordWildCards #-}
-module MRTlib where
+module MRTformat where
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8

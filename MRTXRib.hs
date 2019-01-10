@@ -14,7 +14,6 @@ import qualified Data.IntMap.Strict as Map
 import Text.Printf
 
 import MRTlib
-import MRTrib
 
 type RawRIB = Map.IntMap [RIBEntry] -- either IPv4/6 - as long as there is a defined mapping from a prefix to a word64 (int)
 type BiRIB = (MRTRecord,RawRIB,RawRIB) -- (IPv4,IPv6)
