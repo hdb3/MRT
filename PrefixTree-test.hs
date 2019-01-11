@@ -25,6 +25,6 @@ main = do
              ,("192.168.64.0/18",())
              ,("192.168.0.0/18",())
              ]
-    print $ Overlap.toList $ Overlap.fromList td
-    print $ Overlap.toListLS $ Overlap.fromList td
-    print $ Overlap.toList $ Overlap.fromListLS td
+    putStrLn $ "toList . fromList   " ++ show (Overlap.toList $ Overlap.fromList td)
+    putStrLn $ "toListLS . fromList " ++ show (Overlap.toListLS $ Overlap.fromList td)
+    putStrLn $ "toList . fromListLS " ++ show (Overlap.toList $ Overlap.fromListLS td)

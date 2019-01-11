@@ -10,8 +10,9 @@ import Data.List(foldl')
 import Data.Bits(testBit,setBit)
 import Data.Word
 import Text.Printf
+import Prefixes
 
-type Prefix = (Word8,Word32)
+--type Prefix = (Word8,Word32)
 --instance {-# INCOHERENT #-} Show Prefix where
     --show (l,v) = printf "%08x:%2d" v l
 
