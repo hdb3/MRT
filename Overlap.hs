@@ -1,29 +1,19 @@
 {-#LANGUAGE FlexibleInstances #-}
--- module Overlap(Tree(Empty),PrefixTree,height,size,toList,fromList,insertPrefix,reduce,count,longest,partition,head) where
 module Overlap where
 
 -- this is a fork of Overlap.hs from the router library
 
 import Prelude hiding (head)
 import Data.List(foldl')
-import Data.Bits(testBit)
+import Data.Bits(testBit,setBit)
 import Data.Word
-import Prefixes
+import Text.Printf
+
+type Prefix = (Word8,Word32)
+--instance {-# INCOHERENT #-} Show Prefix where
+    --show (l,v) = printf "%08x:%2d" v l
 
 data Tree a = Empty | Item (Maybe a) (Tree a) (Tree a) deriving Eq
-
--- the structure is not tied to prefixes
--- the following definitions bind Prefixes ....
-type PrefixTree = Tree Prefix
-insertPrefix :: Prefix -> PrefixTree -> PrefixTree
-insertPrefix = insert
-instance Leaf Prefix where
-    lv (Prefix (l,v)) = (l,v)
-
-instance Leaf (a,Prefix) where
-    lv (a,Prefix (l,v)) = (l,v)
-
--- End of Prefix specific code
 
 instance Show a => Show (Tree a) where
     show = showRL where
@@ -38,25 +28,33 @@ instance Show a => Show (Tree a) where
         showN (Item Nothing b c) = "(*," ++ show b ++ "," ++ show c ++ ")"
         showN Empty = "-"
 
--- insert a bits target = ins (a,bits,target,0)
-
-insert :: Leaf a => a -> Tree a -> Tree a
---insert a = ins (a,v,l,0) where (l,v) = lv a 
-insert a = let (l,v) = lv a in ins (a,v,l,0)
+insert :: Prefix -> a -> Tree a -> Tree a
+-- Observation: insert overwrites silently any existing value at a given position
+insert (l,v) a  = ins (a,v,l,0)
     where
     isSet :: Word8 -> Word32 -> Bool
     isSet level bits = testBit bits (31 - fromIntegral level)
     ins :: (a, Word32, Word8, Word8) -> Tree a -> Tree a
     ins (a,bits,target,level) Empty        | level == target  = Item (Just a) Empty Empty
                                            | isSet level bits = Item Nothing (ins (a,bits,target,level+1) Empty) Empty
-                                           | otherwise        = Item Nothing Empty (ins (a,bits,target,level+1) Empty) 
+                                           | otherwise        = Item Nothing Empty (ins (a,bits,target,level+1) Empty)
     ins (a,bits,target,level) (Item x y z) | level == target  = Item (Just a) y z
                                            | isSet level bits = Item x (ins (a,bits,target,level+1) y) z
-                                           | otherwise        = Item x y (ins (a,bits,target,level+1) z) 
-    
-    
-class Leaf a where
-  lv ::  a -> (Word8,Word32)
+                                           | otherwise        = Item x y (ins (a,bits,target,level+1) z)
+
+insertLS :: Prefix -> a -> Tree a -> Tree a
+-- insertLS == insert 'Least Specific' - insertLS removes more specific instances when a covering shorter prefix is inserted
+insertLS (l,v) a  = ins (a,v,l,0)
+    where
+    isSet :: Word8 -> Word32 -> Bool
+    isSet level bits = testBit bits (31 - fromIntegral level)
+    ins :: (a, Word32, Word8, Word8) -> Tree a -> Tree a
+    ins (a,bits,target,level) Empty        | level == target  = Item (Just a) Empty Empty
+                                           | isSet level bits = Item Nothing (ins (a,bits,target,level+1) Empty) Empty
+                                           | otherwise        = Item Nothing Empty (ins (a,bits,target,level+1) Empty)
+    ins (a,bits,target,level) (Item x y z) | level == target  = Item (Just a) Empty Empty
+                                           | isSet level bits = Item x (ins (a,bits,target,level+1) y) z
+                                           | otherwise        = Item x y (ins (a,bits,target,level+1) z)
 
 instance Functor Tree where
     fmap _ Empty = Empty
@@ -75,17 +73,36 @@ count (Item _ b c ) = 1 + count b + count c
 singleton :: a -> Tree a
 singleton x = Item (Just x) Empty Empty
 
-toList :: Tree a -> [a]
-toList = foldr (:) []
+elems :: Tree a -> [a]
+elems = foldr (:) []
 
-fromList :: Leaf a => [a] -> Tree a
-fromList = foldl' (flip insert) Empty
+toList :: Tree a -> [(Prefix,a)]
+toList t = tl 0 0 t
+    where
+    tl :: Word32 -> Word8 -> Tree a -> [(Prefix,a)]
+    tl _ _ Empty = []
+    tl prefix level (Item Nothing t0 t1) = tl (setBit prefix (31 - fromIntegral level)) (level+1) t0 ++ tl prefix (level+1) t1
+    tl prefix level (Item (Just a) t0 t1) = ((level,prefix),a) : tl prefix level (Item Nothing t0 t1)
+
+leastSpecific :: Tree a -> [(Prefix,a)]
+leastSpecific t = ls 0 0 t
+    where
+    ls :: Word32 -> Word8 -> Tree a -> [(Prefix,a)]
+    ls _ _ Empty = []
+    ls prefix level (Item Nothing t0 t1) = ls (setBit prefix (31 - fromIntegral level)) (level+1) t0 ++ ls prefix (level+1) t1
+    ls prefix level (Item (Just a) t0 t1) = [((level,prefix),a)]
+
+fromList :: [(Prefix,a)] -> Tree a
+fromList = foldl' (\t (pfx,a) -> insert pfx a t) Empty
+
+fromListLS :: [(Prefix,a)] -> Tree a
+fromListLS = foldl' (\t (pfx,a) -> insertLS pfx a t) Empty
 
 size :: Tree a -> Int
 size = foldr (\_ b -> b+1) 0
 
 -- this version of longest took 11 minutes to run over a full internet route table
--- the longets sequence discovered was 
+-- the longets sequence discovered was
 -- [222.32.0.0/11,222.35.0.0/16,222.35.128.0/17,222.35.128.0/18,222.35.128.0/19,222.35.136.0/21,222.35.136.0/22,222.35.137.0/24]
 -- and also validated the height function
 
@@ -117,3 +134,5 @@ partition :: Tree a -> [Tree a]
 partition Empty = []
 partition (Item Nothing b c) = partition b ++ partition c
 partition t = [t]
+{-
+-}
