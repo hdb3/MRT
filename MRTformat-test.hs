@@ -1,5 +1,5 @@
 module Main where
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BS
 import Control.Monad(mapM_)
 import MRTformat
 

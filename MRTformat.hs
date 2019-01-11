@@ -1,26 +1,27 @@
 {-# LANGUAGE MultiWayIf,RecordWildCards #-}
 module MRTformat where
 
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as SBS
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Base16
-import qualified Data.Attoparsec.ByteString as DAB
-import Data.Attoparsec.ByteString(Parser,word8,anyWord8,count)
+import qualified Data.Attoparsec.Lazy as DAB  -- import for Lazy version
+import Data.Attoparsec.Lazy(Parser,word8,anyWord8,count)  -- import for Lazy version
 import Data.Attoparsec.Binary
 import Control.Monad(unless)
 import Data.IP hiding(ipv4,ipv6)
 import Data.Bits
 import Data.Word 
 
-newtype BGPMessage = BGPMessage BS.ByteString
+newtype BGPMessage = BGPMessage SBS.ByteString
 instance Show BGPMessage where
     show (BGPMessage bs) = "BGPMessage: " ++ toHex bs
 
-newtype BGPAttributes = BGPAttributes BS.ByteString
+newtype BGPAttributes = BGPAttributes SBS.ByteString
 instance Show BGPAttributes where
     show (BGPAttributes bs) = "BGPAttributes: " ++ toHex bs
 
-newtype HexByteString = HexByteString BS.ByteString
+newtype HexByteString = HexByteString SBS.ByteString
 instance Show HexByteString where
     show (HexByteString bs) = toHex bs
 
@@ -73,12 +74,24 @@ getMRTTableDumpV2 = do
 -- Core attoparsec parser follows
 --
 
+-- this is the lazy version.....
+mrtParse :: BS.ByteString -> [MRTRecord]
+mrtParse bs = mrtParse' (parse' bs) where
+    parse' bs' = DAB.parse rawMRTParse bs'
+    --parse' bs' = DAB.feed (DAB.parse rawMRTParse bs') BS.empty
+    mrtParse' (DAB.Done _ r) = r
+    mrtParse' (DAB.Fail _ sx s) = error $ show (s,sx)
+    --mrtParse' (DAB.Partial _ ) = error "Partial unexpected!"
+
+{-
+-- this is the strict version.....
 mrtParse :: BS.ByteString -> [MRTRecord]
 mrtParse bs = mrtParse' (parse' bs) where
     parse' bs' = DAB.feed (DAB.parse rawMRTParse bs') BS.empty
     mrtParse' (DAB.Done _ r) = r
     mrtParse' (DAB.Fail _ sx s) = error $ show (s,sx)
     mrtParse' (DAB.Partial _ ) = error "Partial unexpected!"
+-}
 
 rawMRTParse :: Parser [MRTRecord]
 rawMRTParse = DAB.many1 rawMRTParser
@@ -110,7 +123,7 @@ bgpAttributes = fmap BGPAttributes bs16
 bgpMessage :: Parser BGPMessage
 bgpMessage = do
     marker <- DAB.take 16
-    unless ( marker == BS.replicate 16 0xff ) (fail "BGP marker synchronisation error")
+    unless ( marker == SBS.replicate 16 0xff ) (fail "BGP marker synchronisation error")
     l <- anyWord16be
     fmap BGPMessage $ DAB.take (fromIntegral l - 18)
 
