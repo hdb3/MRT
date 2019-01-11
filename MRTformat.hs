@@ -1,12 +1,17 @@
 {-# LANGUAGE MultiWayIf,RecordWildCards #-}
 module MRTformat where
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as BS  -- import for Strict version
+import qualified Data.Attoparsec.ByteString as DAB  -- import for Strict version
+import Data.Attoparsec.ByteString(Parser,word8,anyWord8,count)  -- import for Strict version
+
+--import qualified Data.Attoparsec.Lazy as DAB  -- import for Lazy version
+--import Data.Attoparsec.Lazy(Parser,word8,anyWord8,count)  -- import for Lazy version
+--import qualified Data.ByteString.Lazy as BS  -- import for Lazy version
+
 import qualified Data.ByteString as SBS
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Base16
-import qualified Data.Attoparsec.Lazy as DAB  -- import for Lazy version
-import Data.Attoparsec.Lazy(Parser,word8,anyWord8,count)  -- import for Lazy version
 import Data.Attoparsec.Binary
 import Control.Monad(unless)
 import Data.IP hiding(ipv4,ipv6)
@@ -74,16 +79,15 @@ getMRTTableDumpV2 = do
 -- Core attoparsec parser follows
 --
 
+{-
 -- this is the lazy version.....
 mrtParse :: BS.ByteString -> [MRTRecord]
 mrtParse bs = mrtParse' (parse' bs) where
     parse' bs' = DAB.parse rawMRTParse bs'
-    --parse' bs' = DAB.feed (DAB.parse rawMRTParse bs') BS.empty
     mrtParse' (DAB.Done _ r) = r
     mrtParse' (DAB.Fail _ sx s) = error $ show (s,sx)
-    --mrtParse' (DAB.Partial _ ) = error "Partial unexpected!"
+-}
 
-{-
 -- this is the strict version.....
 mrtParse :: BS.ByteString -> [MRTRecord]
 mrtParse bs = mrtParse' (parse' bs) where
@@ -91,7 +95,6 @@ mrtParse bs = mrtParse' (parse' bs) where
     mrtParse' (DAB.Done _ r) = r
     mrtParse' (DAB.Fail _ sx s) = error $ show (s,sx)
     mrtParse' (DAB.Partial _ ) = error "Partial unexpected!"
--}
 
 rawMRTParse :: Parser [MRTRecord]
 rawMRTParse = DAB.many1 rawMRTParser
