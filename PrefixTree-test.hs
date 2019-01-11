@@ -6,7 +6,7 @@ import PrefixTree
 import qualified Overlap
 
 
-main = do
+main' = do
     putStrLn "PrefixTree-test"
     let td = [("192.168.0.0/24",())
              ,("192.168.128.0/24",())
@@ -17,7 +17,7 @@ main = do
     print $ PrefixTree.fromList td
     print $ PrefixTree.fromListLS td
 
-main' = do
+main = do
     putStrLn "Tree-test"
     let td = [("192.168.0.0/24",())
              ,("192.168.128.0/24",())
@@ -26,5 +26,5 @@ main' = do
              ,("192.168.0.0/18",())
              ]
     print $ Overlap.toList $ Overlap.fromList td
-    print $ Overlap.leastSpecific $ Overlap.fromList td
+    print $ Overlap.toListLS $ Overlap.fromList td
     print $ Overlap.toList $ Overlap.fromListLS td

@@ -84,13 +84,19 @@ toList t = tl 0 0 t
     tl prefix level (Item Nothing t0 t1) = tl (setBit prefix (31 - fromIntegral level)) (level+1) t0 ++ tl prefix (level+1) t1
     tl prefix level (Item (Just a) t0 t1) = ((level,prefix),a) : tl prefix level (Item Nothing t0 t1)
 
-leastSpecific :: Tree a -> [(Prefix,a)]
-leastSpecific t = ls 0 0 t
+toListLS :: Tree a -> [(Prefix,a)]
+toListLS t = ls 0 0 t
     where
     ls :: Word32 -> Word8 -> Tree a -> [(Prefix,a)]
     ls _ _ Empty = []
     ls prefix level (Item Nothing t0 t1) = ls (setBit prefix (31 - fromIntegral level)) (level+1) t0 ++ ls prefix (level+1) t1
     ls prefix level (Item (Just a) t0 t1) = [((level,prefix),a)]
+
+leastSpecific :: [(Prefix,a)] -> [(Prefix,a)]
+leastSpecific = toList . fromListLS
+
+leastSpecific' :: [(Prefix,a)] -> [(Prefix,a)]
+leastSpecific' = toListLS . fromList
 
 fromList :: [(Prefix,a)] -> Tree a
 fromList = foldl' (\t (pfx,a) -> insert pfx a t) Empty
