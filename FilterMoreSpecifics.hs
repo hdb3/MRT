@@ -18,9 +18,9 @@ filter :: [MRTRecord] -> [MRTRecord]
 filter = mrtFromTree . mrtToTree
 
 mrtToTree :: [MRTRecord] -> Tree [RIBEntry]
-mrtToTree = Overlap.fromList . catMaybes . map mrtToLeaf where
+mrtToTree = Overlap.fromListLS . catMaybes . map mrtToLeaf where
     mrtToLeaf RIBIPV4Unicast{..} = Just $ ((re4Length, byteSwap32 $ toHostAddress re4Address) , re4RIB)
     mrtToLeaf _ = Nothing
 
-mrtFromTree = map mrtFromLeaf . zip [0..] . Overlap.toList where
+mrtFromTree = map mrtFromLeaf . zip [0..] . Overlap.toListLS where
     mrtFromLeaf (n,((l,v),ribs)) = RIBIPV4Unicast (fromIntegral n) l (fromHostAddress $ byteSwap32 v) ribs
