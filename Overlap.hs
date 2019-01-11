@@ -1,4 +1,6 @@
 {-#LANGUAGE FlexibleInstances #-}
+{-#LANGUAGE BangPatterns #-}
+{-#LANGUAGE UnboxedTuples #-}
 module Overlap where
 
 -- this is a fork of Overlap.hs from the router library
@@ -13,7 +15,13 @@ type Prefix = (Word8,Word32)
 --instance {-# INCOHERENT #-} Show Prefix where
     --show (l,v) = printf "%08x:%2d" v l
 
-data Tree a = Empty | Item (Maybe a) (Tree a) (Tree a) deriving Eq
+-- regarding optimisation via strictness and unpacking - the strict form (bang patterns only)
+-- showed ~10-20% better performance
+-- the unpacked form is rejected as pointless by GHC
+-- the UnboxedTuples pragma made a smaller difference (<5%)
+-- data Tree a = Empty | Item (Maybe a) (Tree a) (Tree a) deriving Eq
+-- data Tree a = Empty | Item {-# UNPACK #-} ! (Maybe a) {-# UNPACK #-} ! (Tree a) {-# UNPACK #-} ! (Tree a) deriving Eq
+data Tree a = Empty | Item ! (Maybe a) ! (Tree a) ! (Tree a) deriving Eq
 
 instance Show a => Show (Tree a) where
     show = showRL where
