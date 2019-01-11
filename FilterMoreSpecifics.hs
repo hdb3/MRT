@@ -10,6 +10,7 @@ a naive implmentation would require lookups over every possible length, which is
 -}
 import Data.Maybe(catMaybes)
 import Data.IP
+import Data.Word(byteSwap32)
 import MRTlib
 import Overlap
 
@@ -18,8 +19,8 @@ filter = mrtFromTree . mrtToTree
 
 mrtToTree :: [MRTRecord] -> Tree [RIBEntry]
 mrtToTree = Overlap.fromList . catMaybes . map mrtToLeaf where
-    mrtToLeaf RIBIPV4Unicast{..} = Just $ ((re4Length, toHostAddress re4Address) , re4RIB)
+    mrtToLeaf RIBIPV4Unicast{..} = Just $ ((re4Length, byteSwap32 $ toHostAddress re4Address) , re4RIB)
     mrtToLeaf _ = Nothing
 
 mrtFromTree = map mrtFromLeaf . zip [0..] . Overlap.toList where
-    mrtFromLeaf (n,((l,v),ribs)) = RIBIPV4Unicast (fromIntegral n) l (fromHostAddress v) ribs
+    mrtFromLeaf (n,((l,v),ribs)) = RIBIPV4Unicast (fromIntegral n) l (fromHostAddress $ byteSwap32 v) ribs
