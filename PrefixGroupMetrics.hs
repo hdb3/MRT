@@ -35,7 +35,7 @@ fromRouteMapv4 = Map.elems . Map.map snd
 compareRouteMapv4 :: RouteMapv4 -> RouteMapv4 -> String
 compareRouteMapv4 a b = "(" ++ showAs ra ++ " , " ++ showAs rb ++ " )   " ++ show (ra,rb)
     where
-    showAs = showAsSummary
+    showAs = showRatios
     (ra,rb) = compareLLists (fromRouteMapv4 a) (fromRouteMapv4 b)
     showAsPercentage (a0,a1,a2,a3,a4,a5) = printf "(%5.2f %5.2f %5.2f %5.2f %5.2f %5.2f" (sp a0) (sp a1) (sp a2) (sp a3) (sp a4) (sp a5) :: String
         where
@@ -43,6 +43,11 @@ compareRouteMapv4 a b = "(" ++ showAs ra ++ " , " ++ showAs rb ++ " )   " ++ sho
     showAsSummary (a0,a1,a2,a3,a4,a5) = printf "(%5.2f %5.2f %5.2f" (sp a0) (sp (a3+a4)) (sp (a1+a2+a5)) :: String
         where
         sp n = 100.0 * ( fromIntegral n / fromIntegral (a0+a1+a2+a3+a4+a5)) :: Float
+    showRatios (a0,a1,a2,a3,a4,a5) = printf "(%5.2f %5.2f(%5.2f) %5.2f" (sp a0) (sp (a3+a4)) (100* (a3'/a4')) (sp (a1+a2+a5)) :: String
+        where
+        sp n = 100.0 * ( fromIntegral n / fromIntegral (a0+a1+a2+a3+a4+a5)) :: Float
+        a3' = fromIntegral a3  :: Float
+        a4' = fromIntegral a4  :: Float
 
 compareLLists :: [IP4PrefixList] -> [IP4PrefixList] -> ((Int,Int,Int,Int,Int,Int),(Int,Int,Int,Int,Int,Int))
 compareLLists a b = (compareLList b a , compareLList a b)
