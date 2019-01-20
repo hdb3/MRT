@@ -4,6 +4,7 @@ import Control.Monad(mapM_)
 import MRTrib
 import MRTRibAnalysis
 import PrefixGroupMetrics
+import qualified ClusterMetrics
 
 main :: IO ()
 main = do
@@ -40,4 +41,5 @@ extendedMetrics ribDB = do
     putStrLn "(n , empty , subset , superset , multiple , multiple/partial)"
     mapM_ showExtendedMetrics (pairs validTables)
     where
-    showExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = putStrLn $ printf "(%2d,%2d) " pi0 pi1  ++ compareRouteMapv4 m0 m1
+    -- showExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = putStrLn $ printf "(%2d,%2d) " pi0 pi1  ++ compareRouteMapv4 m0 m1 ++ ClusterMetrics.compareRouteMapv4 m0 m1
+    showExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = putStrLn $ printf "(%2d,%2d) " pi0 pi1  ++ ClusterMetrics.compareRouteMapv4 m0 m1
