@@ -6,10 +6,11 @@ module MRTRibAnalysis ( showMetrics
                       , maxPrefixCount
                       , preFilterTable
                       , pairs
+                      , sortOnLength
                       ) where
 
 import qualified Data.IntMap.Strict as Map
-import Data.List(sort,maximum)
+import Data.List(sort,maximum,sortOn)
 import Text.Printf
 
 import MRTrib
@@ -25,6 +26,14 @@ a custom calculation over an ordered list can probably be done more efficiently 
 
 -}
 
+
+sortOnLength :: MRTRib a -> MRTRib a
+sortOnLength = sortOn prefixCount
+    where
+    prefixCount :: Peer a -> Int
+    prefixCount (_,_,m) = Map.size m
+--type MRTRib a = [(PeerIndex, MRTPeer, Map.IntMap (BGPAttributes, [a]))]
+--type Peer a = (PeerIndex,MRTPeer,Map.IntMap (BGPAttributes,[a]))
 
 pairs ::  MRTRib a -> [(Peer a,Peer a)]
 pairs peers = let l = length peers
