@@ -11,7 +11,8 @@ fromRouteMapv4 :: RouteMapv4 -> [[IP4PrefixHash]]
 fromRouteMapv4 = map (map v4hash) . Map.elems . Map.map snd
 
 compareRouteMaps :: [RouteMapv4] -> String
-compareRouteMaps = groupRIBReport . take 100 . interlace . map fromRouteMapv4
+compareRouteMaps = groupRIBReport . interlace . map fromRouteMapv4
+--compareRouteMaps = groupRIBReport . take 100 . interlace . map fromRouteMapv4
     where
     interlace :: [[a]] -> [a]
     interlace [] = []
