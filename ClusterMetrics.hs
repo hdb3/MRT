@@ -10,8 +10,12 @@ import GroupRIBReport
 fromRouteMapv4 :: RouteMapv4 -> [[IP4PrefixHash]]
 fromRouteMapv4 = map (map v4hash) . Map.elems . Map.map snd
 
+simpleCompareRouteMaps :: [RouteMapv4] -> String
+simpleCompareRouteMaps = simpleGroupRIBReport . concatMap fromRouteMapv4
+
 compareRouteMaps :: [RouteMapv4] -> String
-compareRouteMaps = groupRIBReport . interlace . map fromRouteMapv4
+compareRouteMaps = groupRIBReport . concatMap fromRouteMapv4
+--compareRouteMaps = groupRIBReport . interlace . map fromRouteMapv4
 --compareRouteMaps = groupRIBReport . take 100 . interlace . map fromRouteMapv4
     where
     interlace :: [[a]] -> [a]

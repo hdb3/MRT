@@ -15,7 +15,8 @@ main = do
         putStr $ show (length rib) ++ " records read "
         --doRIBv4 (getMRTRibV4 (peerTable:rib))
         --doRIBv6 (getMRTRibV6 (peerTable:rib))
-        groupMetrics (getMRTRibV4 (peerTable:rib))
+        simpleGroupMetrics (getMRTRibV4 (peerTable:rib))
+        --groupMetrics (getMRTRibV4 (peerTable:rib))
         --extendedMetrics (getMRTRibV4 (peerTable:rib))
 
 doRIBv4 ribDB = do
@@ -44,6 +45,17 @@ extendedMetrics ribDB = do
     where
     showExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = putStrLn $ printf "(%2d,%2d) " pi0 pi1  ++ compareRouteMapv4 m0 m1
     -- showExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = putStrLn $ printf "(%2d,%2d) " pi0 pi1  ++ ClusterMetrics.compareRouteMapv4 m0 m1
+
+simpleGroupMetrics ribDB = do
+    let validTables = sortOnLength $ preFilterTable 0.05 ribDB
+    putStrLn $ "simpleGroupMetrics - full tables only - (sample set size " ++ show ( length validTables) ++ ")"
+    putStrLn $ "using RIs from : " ++ show ( map (\(pi,_,_) -> pi) validTables )
+    putStrLn $ ClusterMetrics.simpleCompareRouteMaps ( map (\(_,_,peer) -> peer) validTables)
+
+    let validTables = sortOnLength ribDB
+    putStrLn $ "simpleGroupMetrics - all tables - (sample set size " ++ show ( length validTables) ++ ")"
+    putStrLn $ "using RIs from : " ++ show ( map (\(pi,_,_) -> pi) validTables )
+    putStrLn $ ClusterMetrics.simpleCompareRouteMaps ( map (\(_,_,peer) -> peer) validTables)
 
 groupMetrics ribDB = do
     let validTables = sortOnLength $ preFilterTable 0.03 ribDB
