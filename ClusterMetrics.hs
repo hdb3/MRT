@@ -1,9 +1,8 @@
 module ClusterMetrics where
 
-import Text.Printf
 import qualified Data.IntMap.Strict as Map
-import Data.Maybe(isJust,catMaybes)
-import Data.List(sort,group,uncons)
+import Data.List(uncons)
+import Data.Maybe(mapMaybe)
 import MRTrib
 import GroupRIBReport
 
@@ -22,7 +21,7 @@ compareRouteMaps = groupRIBReport . concatMap fromRouteMapv4
     interlace [] = []
     interlace ax = heads ++ interlace tails
         where
-        (heads,tails) = unzip $ catMaybes $ map uncons ax
+        (heads,tails) = unzip $ mapMaybe uncons ax
 
 compareRouteMapv4 :: RouteMapv4 -> RouteMapv4 -> String
 compareRouteMapv4 a b = compareRouteMaps [ a , b ]

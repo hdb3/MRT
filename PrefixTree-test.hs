@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
-import Data.IP
 import PrefixTree
 import qualified Overlap
 

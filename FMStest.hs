@@ -1,8 +1,6 @@
 module Main where
 import qualified Data.ByteString as BS -- Strict verion import
 -- import qualified Data.ByteString.Lazy as BS -- Lazy version import
-import Control.Monad(mapM_)
---import Data.List(filter)
 import MRTformat
 import FilterMoreSpecifics
 
