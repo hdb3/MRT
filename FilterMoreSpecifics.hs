@@ -8,7 +8,7 @@ it does so by excluding and replacing longer prefixes for shorter ones on the sa
 this requires a 'least specific lookup' of some form
 a naive implmentation would require lookups over every possible length, which is quite expensive (and complex)
 -}
-import Data.Maybe(catMaybes)
+import Data.Maybe(mapMaybe)
 import Data.IP
 import Data.Word(byteSwap32)
 import MRTlib
@@ -32,9 +32,9 @@ filterLS :: [MRTRecord] -> [MRTRecord]
 filterLS = mrtFromTree . mrtToTree
 
 mrtToTree :: [MRTRecord] -> Tree [RIBEntry]
-mrtToTree = Overlap.fromList . catMaybes . map mrtToLeaf where
+mrtToTree = Overlap.fromList . mapMaybe mrtToLeaf where
     -- reject default route - otherwise the answer empty when it is present ;-)
-    mrtToLeaf RIBIPV4Unicast{..} | (0 < re4Length) = Just $ ((re4Length, byteSwap32 $ toHostAddress re4Address) , re4RIB)
+    mrtToLeaf RIBIPV4Unicast{..} | (0 < re4Length) = Just ((re4Length, byteSwap32 $ toHostAddress re4Address) , re4RIB)
     mrtToLeaf _ = Nothing
 
 mrtFromTree :: Tree [RIBEntry] -> [MRTRecord]

@@ -1,6 +1,4 @@
 {-#LANGUAGE FlexibleInstances #-}
-{-#LANGUAGE BangPatterns #-}
-{-#LANGUAGE UnboxedTuples #-}
 module Overlap where
 
 -- this is a fork of Overlap.hs from the router library
@@ -9,7 +7,7 @@ import Prelude hiding (head)
 import Data.List(foldl')
 import Data.Bits(testBit,setBit)
 import Data.Word
-import Text.Printf
+--import Text.Printf
 import Prefixes
 
 --type Prefix = (Word8,Word32)

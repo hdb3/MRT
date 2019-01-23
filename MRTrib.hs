@@ -11,6 +11,7 @@ import qualified Data.IntMap.Strict as Map
 import FarmHash(hash64)
 import Data.Array.IArray
 import Data.Maybe(fromMaybe)
+import Data.List(foldl')
 
 import MRTlib
 
@@ -58,7 +59,7 @@ mrtToPeerMap = buildPeerMap . mrtToPeerMapInput
 
 
     buildPeerMap :: [PeerMapInput] -> PeerMap
-    buildPeerMap = foldl insertPeerMap Map.empty
+    buildPeerMap = foldl' insertPeerMap Map.empty
 
     insertPeerMap :: PeerMap -> (PeerIndex, BGPAttributeHash,BGPAttributes,IPPrefix) -> PeerMap
     insertPeerMap m (peer,hash,attrs,prefix) = Map.alter (insertRouteMap (hash,attrs,prefix)) (fromIntegral peer) m
