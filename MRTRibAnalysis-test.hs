@@ -6,8 +6,20 @@ import MRTRibAnalysis
 import PrefixGroupMetrics
 import qualified ClusterMetrics
 
+
 main :: IO ()
 main = do
+    mrtss <- getMRTTableDumps
+    if null mrtss then
+        putStrLn "no RIB records found in file"
+    else do
+        putStr $ show (sum $ map length mrtss) ++ " records read "
+        let ipv4PeerTable = getMRTRibs mrtss
+        putStrLn $ showMRTRibV4 ipv4PeerTable
+        simpleGroupMetrics ipv4PeerTable
+
+main' :: IO ()
+main' = do
     (peerTable:rib) <- getMRTTableDumpV2
     if null rib then
         putStrLn "no RIB records found in file"

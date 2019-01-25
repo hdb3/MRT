@@ -2,6 +2,7 @@
 module MRTrib ( module MRTlib
               , prefixCountRouteMap,pathCountRouteMap,statsRouteMap,showStatsRouteMap
               , getMRTRibV4,getMRTRibV6,showMRTRibV4,showMRTRibV6
+              , getMRTRibs
               , Peer, MRTRib,Rib
               , RouteMapv4,RouteMapv6
               , MRTRibV4,MRTRibV6
@@ -11,7 +12,7 @@ import qualified Data.IntMap.Strict as Map
 import FarmHash(hash64)
 import Data.Array.IArray
 import Data.Maybe(fromMaybe)
-import Data.List(foldl')
+import Data.List(foldl',reverse)
 
 import MRTlib
 
@@ -35,6 +36,12 @@ type IPv4PeerTable = Array PeerIndex (MRTPeer,RouteMapv4)
 
 type MRTRibV4 = [(PeerIndex,MRTPeer,RouteMapv4)]
 type MRTRibV6 = [(PeerIndex,MRTPeer,RouteMapv6)]
+
+concatRibs :: [[(PeerIndex, b, c)]] -> [(PeerIndex, b, c)]
+concatRibs = reverse . snd . rewritePeerIndices . concat
+    where
+    rewritePeerIndices = foldl (\ (n,ax) (_,a,b) -> (n+1,(n,a,b):ax)) (0,[]) 
+
 type IPv6PeerTable = Array PeerIndex (MRTPeer,RouteMapv6)
 
 data RIBrecord = RIBrecord { rrPrefix :: IPPrefix, rrPeerIndex :: PeerIndex , rrOriginatedTime :: Timestamp , rrAttributes :: BGPAttributes, rrAttributeHash :: BGPAttributeHash } deriving Show
@@ -104,6 +111,9 @@ makePeerTable l = listArray (0,fromIntegral $ length l - 1) l
 
 getMRTRibV4 :: [MRTRecord] -> MRTRibV4
 getMRTRibV4 = map (\(a,(b,c))->(a,b,c)) . assocs . getIPv4PeerTable . getPeerTable
+
+getMRTRibs :: [[MRTRecord]] -> MRTRibV4
+getMRTRibs = concatRibs . map getMRTRibV4
 
 getMRTRibV6 :: [MRTRecord] -> MRTRibV6
 getMRTRibV6 = map (\(a,(b,c))->(a,b,c)) . assocs . getIPv6PeerTable . getPeerTable

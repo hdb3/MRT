@@ -1,13 +1,13 @@
 {-# LANGUAGE MultiWayIf,RecordWildCards #-}
 module MRTformat where
 
-import qualified Data.ByteString as BS  -- import for Strict version
-import qualified Data.Attoparsec.ByteString as DAB  -- import for Strict version
-import Data.Attoparsec.ByteString(Parser,word8,anyWord8,count)  -- import for Strict version
+--import qualified Data.ByteString as BS  -- import for Strict version
+--import qualified Data.Attoparsec.ByteString as DAB  -- import for Strict version
+--import Data.Attoparsec.ByteString(Parser,word8,anyWord8,count)  -- import for Strict version
 
---import qualified Data.Attoparsec.Lazy as DAB  -- import for Lazy version
---import Data.Attoparsec.Lazy(Parser,word8,anyWord8,count)  -- import for Lazy version
---import qualified Data.ByteString.Lazy as BS  -- import for Lazy version
+import qualified Data.Attoparsec.Lazy as DAB  -- import for Lazy version
+import Data.Attoparsec.Lazy(Parser,word8,anyWord8,count)  -- import for Lazy version
+import qualified Data.ByteString.Lazy as BS  -- import for Lazy version
 
 import qualified Data.ByteString as SBS
 import qualified Data.ByteString.Char8 as Char8
@@ -17,6 +17,8 @@ import Control.Monad(unless)
 import Data.IP hiding(ipv4,ipv6)
 import Data.Bits
 import Data.Word 
+import System.Environment(getArgs)
+import Codec.Compression.GZip(decompress)
 
 newtype BGPMessage = BGPMessage SBS.ByteString
 instance Show BGPMessage where
@@ -77,19 +79,30 @@ getMRTTableDumpV2 = do
     validate _ = error "expected MRTPeerIndexTable as first record in RIB file"
     getMRT = fmap mrtParse BS.getContents
 
+getMRTTableDumps :: IO [[MRTRecord]] -- first members are guaranteed to be MRTlib.MRTPeerIndexTable
+--getMRTTableDumps = fmap (:[]) getMRTTableDumpV2
+getMRTTableDumps = do
+    args <- getArgs
+    if null args
+    then fmap (:[]) getMRTTableDumpV2
+    else mapM fgetMRTTableDumpV2 args
+    where
+    fgetMRTTableDumpV2 fname = fmap ( mrtParse . decompress) (BS.readFile fname)
+    
+        
+
 --
 -- Core attoparsec parser follows
 --
 
-{-
 -- this is the lazy version.....
 mrtParse :: BS.ByteString -> [MRTRecord]
 mrtParse bs = mrtParse' (parse' bs) where
     parse' bs' = DAB.parse rawMRTParse bs'
     mrtParse' (DAB.Done _ r) = r
     mrtParse' (DAB.Fail _ sx s) = error $ show (s,sx)
--}
 
+{-
 -- this is the strict version.....
 mrtParse :: BS.ByteString -> [MRTRecord]
 mrtParse bs = mrtParse' (parse' bs) where
@@ -97,6 +110,7 @@ mrtParse bs = mrtParse' (parse' bs) where
     mrtParse' (DAB.Done _ r) = r
     mrtParse' (DAB.Fail _ sx s) = error $ show (s,sx)
     mrtParse' (DAB.Partial _ ) = error "Partial unexpected!"
+-}
 
 rawMRTParse :: Parser [MRTRecord]
 rawMRTParse = DAB.many1 rawMRTParser
