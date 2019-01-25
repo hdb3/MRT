@@ -3,7 +3,7 @@ import MRTrib
 
 main :: IO ()
 main = do
-    (pt,rib) <- getMRTTableDumpV2
+    (pt:rib) <- getMRTTableDumpV2
     if null rib then
         putStrLn "no RIB records found in file"
     else do

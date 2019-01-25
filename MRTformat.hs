@@ -66,12 +66,14 @@ data BGP4MPState = BGP4MPIdle | BGP4MPConnect | BGP4MPActive | BGP4MPOpenSent | 
 
 -- convenience function: getMRTTableDumpV2
 
-getMRTTableDumpV2 :: IO (MRTRecord,[MRTRecord]) -- first member is guaranteed to be MRTlib.MRTPeerIndexTable
+--getMRTTableDumpV2 :: IO (MRTRecord,[MRTRecord]) -- first member is guaranteed to be MRTlib.MRTPeerIndexTable
+getMRTTableDumpV2 :: IO [MRTRecord] -- first member is guaranteed to be MRTlib.MRTPeerIndexTable
 getMRTTableDumpV2 = do
     mrtList <- getMRT
     return $ validate mrtList
     where
-    validate ( a@MRTPeerIndexTable{} : b) = (a,b)
+    --validate ( a@MRTPeerIndexTable{} : b) = (a,b)
+    validate ( a@MRTPeerIndexTable{} : b) = a:b
     validate _ = error "expected MRTPeerIndexTable as first record in RIB file"
     getMRT = fmap mrtParse BS.getContents
 

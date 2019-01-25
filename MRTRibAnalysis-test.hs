@@ -8,7 +8,7 @@ import qualified ClusterMetrics
 
 main :: IO ()
 main = do
-    (peerTable,rib) <- getMRTTableDumpV2
+    (peerTable:rib) <- getMRTTableDumpV2
     if null rib then
         putStrLn "no RIB records found in file"
     else do
