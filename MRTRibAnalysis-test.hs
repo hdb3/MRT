@@ -16,6 +16,7 @@ main = do
         putStr $ show (sum $ map length mrtss) ++ " records read "
         let ipv4PeerTable = getMRTRibs mrtss
         putStrLn $ showMRTRibV4 ipv4PeerTable
+        simplePeerMetrics ipv4PeerTable
         simpleGroupMetrics ipv4PeerTable
 
 main' :: IO ()
@@ -28,6 +29,7 @@ main' = do
         --doRIBv4 (getMRTRibV4 (peerTable:rib))
         --doRIBv6 (getMRTRibV6 (peerTable:rib))
         simpleGroupMetrics (getMRTRibV4 (peerTable:rib))
+        simplePeerMetrics (getMRTRibV4 (peerTable:rib))
         --groupMetrics (getMRTRibV4 (peerTable:rib))
         --extendedMetrics (getMRTRibV4 (peerTable:rib))
 
@@ -57,6 +59,14 @@ extendedMetrics ribDB = do
     where
     showExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = putStrLn $ printf "(%2d,%2d) " pi0 pi1  ++ compareRouteMapv4 m0 m1
     -- showExtendedMetrics ((pi0,p0,m0),(pi1,p1,m1)) = putStrLn $ printf "(%2d,%2d) " pi0 pi1  ++ ClusterMetrics.compareRouteMapv4 m0 m1
+
+simplePeerMetrics ribDB = do
+    let validTables = preFilterTable 0.03 ribDB
+    putStrLn $ "simplePeerMetrics (sample set size " ++ show ( length validTables) ++ ")"
+    putStrLn "(peer index , peer , routes , prefixes"
+    mapM_ showPeerMetrics validTables
+    where
+    showPeerMetrics (pi,p,m) = putStrLn $ show pi ++ " - " ++ show p ++ " - " ++ showStatsRouteMap m
 
 simpleGroupMetrics ribDB = do
     let validTables = sortOnLength $ preFilterTable 0.05 ribDB
