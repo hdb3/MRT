@@ -4,6 +4,7 @@ import Control.Monad(mapM_)
 import MRTrib
 import MRTRibAnalysis
 import PrefixGroupMetrics
+import FilterMoreSpecifics
 import qualified ClusterMetrics
 
 
@@ -13,8 +14,10 @@ main = do
     if null mrtss then
         putStrLn "no RIB records found in file"
     else do
-        putStr $ show (sum $ map length mrtss) ++ " records read "
-        let ipv4PeerTable = getMRTRibs mrtss
+        putStr $ show (sum $ map length mrtss) ++ " raw records read "
+        let filteredMrtss = map (filter filterSlash25) mrtss
+        putStr $ show (sum $ map length filteredMrtss) ++ " filtered records read "
+        let ipv4PeerTable = getMRTRibs filteredMrtss
         putStrLn $ showMRTRibV4 ipv4PeerTable
         simplePeerMetrics ipv4PeerTable
         simpleGroupMetrics ipv4PeerTable

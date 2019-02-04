@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module FilterMoreSpecifics ( filterLS , filterRIBIPV4Unicast , filterSlash32 , filterSlash25to31 , mrtToTree , mrtFromTree , Overlap.size , Overlap.count , Overlap.toList ) where
+module FilterMoreSpecifics ( filterLS , filterRIBIPV4Unicast , filterSlash25 , filterSlash32 , filterSlash25to31 , mrtToTree , mrtFromTree , Overlap.size , Overlap.count , Overlap.toList ) where
 
 {-
 
@@ -27,6 +27,11 @@ filterSlash32 _ = False
 filterSlash25to31 :: CustomFilter
 filterSlash25to31 RIBIPV4Unicast{..} | (24 < re4Length) && ( 32 > re4Length) = True
 filterSlash25to31 _ = False
+
+filterSlash25 :: CustomFilter
+filterSlash25 RIBIPV4Unicast{..} = (24 < re4Length)
+--filterSlash25 RIBIPV4Unicast{..} | (24 < re4Length) = True
+--filterSlash25 _ = False
 
 filterLS :: [MRTRecord] -> [MRTRecord]
 filterLS = mrtFromTree . mrtToTree
