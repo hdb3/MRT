@@ -7,7 +7,8 @@
 
 module MRTquest where
 import Data.Array.IArray
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BS
+--import qualified Data.ByteString as BS
 import qualified Data.IntMap.Strict as Map
 import qualified MRTlib
 
