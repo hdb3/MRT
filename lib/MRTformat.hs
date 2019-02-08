@@ -19,6 +19,8 @@ import Data.Bits
 import Data.Word 
 import System.Environment(getArgs)
 import Codec.Compression.GZip(decompress)
+import Prefixes
+import BogonFilter
 
 newtype BGPMessage = BGPMessage SBS.ByteString
 instance Show BGPMessage where
@@ -67,6 +69,11 @@ data RIBEntry = RIBEntry { rePeerIndex :: Word16 , reOriginatedTime :: Timestamp
 data BGP4MPState = BGP4MPIdle | BGP4MPConnect | BGP4MPActive | BGP4MPOpenSent | BGP4MPOpenConfirm | BGP4MPEstablished deriving Show
 
 -- convenience function: getMRTTableDumpV2
+
+mrtBogonFilter :: [MRTRecord] -> [MRTRecord]
+mrtBogonFilter = filter p where
+    p RIBIPV4Unicast{..} = bogonFilter (Prefix (re4Length,toHostAddress re4Address))
+    p _ = True
 
 --getMRTTableDumpV2 :: IO (MRTRecord,[MRTRecord]) -- first member is guaranteed to be MRTlib.MRTPeerIndexTable
 getMRTTableDumpV2 :: IO [MRTRecord] -- first member is guaranteed to be MRTlib.MRTPeerIndexTable

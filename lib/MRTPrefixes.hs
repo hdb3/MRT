@@ -30,11 +30,11 @@ instance {-# INCOHERENT #-} Show Prefix where
 --ipOf :: Prefix -> Word32
 --ipOf (Prefix (_,i)) = i
  
-fromPrefix :: Prefix -> AddrRange IPv4
-fromPrefix (Prefix (subnet,ip)) = makeAddrRange (fromHostAddress $ byteSwap32 ip) (fromIntegral subnet)
+toAddrRange :: Prefix -> AddrRange IPv4
+toAddrRange (Prefix (subnet,ip)) = makeAddrRange (fromHostAddress $ byteSwap32 ip) (fromIntegral subnet)
 --fromPrefix (Prefix (subnet,ip)) = makeAddrRange (fromHostAddress $ byteSwap32 ip) (fromIntegral subnet)
 
-toPrefix :: AddrRange IPv4 -> Prefix
 --toPrefix ar = Prefix (fromIntegral subnet, byteSwap32 $ toHostAddress ip) where
-toPrefix ar = Prefix (fromIntegral subnet, byteSwap32 $ toHostAddress ip) where
+fromAddrRange :: AddrRange IPv4 -> Prefix
+fromAddrRange ar = Prefix (fromIntegral subnet, byteSwap32 $ toHostAddress ip) where
                    (ip,subnet) = addrRangePair ar

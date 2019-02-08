@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module FilterMoreSpecifics ( filterLS , filterRIBIPV4Unicast , filterSlash25 , filterSlash32 , filterSlash25to31 , mrtToTree , mrtFromTree , Overlap.size , Overlap.count , Overlap.toList ) where
+module FilterMoreSpecifics ( filterLS , filterRIBIPV4UnicastOrPeerTable, filterRIBIPV4Unicast , filterSlash25 , filterSlash32 , filterSlash25to31 , mrtToTree , mrtFromTree , Overlap.size , Overlap.count , Overlap.toList ) where
 
 {-
 
@@ -12,10 +12,15 @@ import Data.Maybe(mapMaybe)
 import Data.IP
 import Data.Word(byteSwap32)
 import MRTlib
-import MRTPrefixes
+import Prefixes
 import Overlap
 
 type CustomFilter = MRTRecord -> Bool
+
+filterRIBIPV4UnicastOrPeerTable :: CustomFilter
+filterRIBIPV4UnicastOrPeerTable RIBIPV4Unicast{..} = True
+filterRIBIPV4UnicastOrPeerTable MRTPeerIndexTable{..} = True
+filterRIBIPV4UnicastOrPeerTable _ = False
 
 filterRIBIPV4Unicast :: CustomFilter
 filterRIBIPV4Unicast RIBIPV4Unicast{..} = True

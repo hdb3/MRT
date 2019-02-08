@@ -8,7 +8,7 @@ import Data.List(foldl')
 import Data.Bits(testBit,setBit)
 import Data.Word
 --import Text.Printf
-import MRTPrefixes
+import Prefixes
 
 --type Prefix = (Word8,Word32)
 --instance {-# INCOHERENT #-} Show Prefix where

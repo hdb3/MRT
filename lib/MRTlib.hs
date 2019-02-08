@@ -17,8 +17,6 @@ import MRTformat
 
 
 data IPPrefix = IP4Prefix IP4Prefix | IP6Prefix IP6Prefix deriving (Show,Generic)
-instance Data.Hashable.Hashable IPv4
-instance Data.Hashable.Hashable IPv6
 instance Data.Hashable.Hashable IPPrefix
 
 type IP4PrefixHash = Int
