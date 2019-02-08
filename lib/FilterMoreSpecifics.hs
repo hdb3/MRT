@@ -12,6 +12,7 @@ import Data.Maybe(mapMaybe)
 import Data.IP
 import Data.Word(byteSwap32)
 import MRTlib
+import MRTPrefixes
 import Overlap
 
 type CustomFilter = MRTRecord -> Bool
@@ -39,9 +40,9 @@ filterLS = mrtFromTree . mrtToTree
 mrtToTree :: [MRTRecord] -> Tree [RIBEntry]
 mrtToTree = Overlap.fromList . mapMaybe mrtToLeaf where
     -- reject default route - otherwise the answer empty when it is present ;-)
-    mrtToLeaf RIBIPV4Unicast{..} | (0 < re4Length) = Just ((re4Length, byteSwap32 $ toHostAddress re4Address) , re4RIB)
+    mrtToLeaf RIBIPV4Unicast{..} | (0 < re4Length) = Just (Prefix(re4Length, byteSwap32 $ toHostAddress re4Address) , re4RIB)
     mrtToLeaf _ = Nothing
 
 mrtFromTree :: Tree [RIBEntry] -> [MRTRecord]
 mrtFromTree = map mrtFromLeaf . zip [0..] . Overlap.toListLS where
-    mrtFromLeaf (n,((l,v),ribs)) = RIBIPV4Unicast (fromIntegral n) l (fromHostAddress $ byteSwap32 v) ribs
+    mrtFromLeaf (n,(Prefix(l,v),ribs)) = RIBIPV4Unicast (fromIntegral n) l (fromHostAddress $ byteSwap32 v) ribs

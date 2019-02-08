@@ -8,7 +8,7 @@ import Data.List(foldl')
 import Data.Bits(testBit,setBit)
 import Data.Word
 --import Text.Printf
-import Prefixes
+import MRTPrefixes
 
 --type Prefix = (Word8,Word32)
 --instance {-# INCOHERENT #-} Show Prefix where
@@ -37,7 +37,7 @@ instance Show a => Show (Tree a) where
 
 insert :: Prefix -> a -> Tree a -> Tree a
 -- Observation: insert overwrites silently any existing value at a given position
-insert (l,v) a  = ins (a,v,l,0)
+insert (Prefix (l,v)) a  = ins (a,v,l,0)
     where
     isSet :: Word8 -> Word32 -> Bool
     isSet level bits = testBit bits (31 - fromIntegral level)
@@ -51,7 +51,7 @@ insert (l,v) a  = ins (a,v,l,0)
 
 insertLS :: Prefix -> a -> Tree a -> Tree a
 -- insertLS == insert 'Least Specific' - insertLS removes more specific instances when a covering shorter prefix is inserted
-insertLS (l,v) a  = ins (a,v,l,0)
+insertLS (Prefix (l,v)) a  = ins (a,v,l,0)
     where
     isSet :: Word8 -> Word32 -> Bool
     isSet level bits = testBit bits (31 - fromIntegral level)
@@ -89,7 +89,7 @@ toList t = tl 0 0 t
     tl :: Word32 -> Word8 -> Tree a -> [(Prefix,a)]
     tl _ _ Empty = []
     tl prefix level (Item Nothing t0 t1) = tl (setBit prefix (31 - fromIntegral level)) (level+1) t0 ++ tl prefix (level+1) t1
-    tl prefix level (Item (Just a) t0 t1) = ((level,prefix),a) : tl prefix level (Item Nothing t0 t1)
+    tl prefix level (Item (Just a) t0 t1) = (Prefix(level,prefix),a) : tl prefix level (Item Nothing t0 t1)
 
 toListLS :: Tree a -> [(Prefix,a)]
 toListLS t = ls 0 0 t
@@ -97,7 +97,7 @@ toListLS t = ls 0 0 t
     ls :: Word32 -> Word8 -> Tree a -> [(Prefix,a)]
     ls _ _ Empty = []
     ls prefix level (Item Nothing t0 t1) = ls (setBit prefix (31 - fromIntegral level)) (level+1) t0 ++ ls prefix (level+1) t1
-    ls prefix level (Item (Just a) t0 t1) = [((level,prefix),a)]
+    ls prefix level (Item (Just a) t0 t1) = [(Prefix(level,prefix),a)]
 
 leastSpecific :: [(Prefix,a)] -> [(Prefix,a)]
 leastSpecific = toList . fromListLS

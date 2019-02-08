@@ -1,7 +1,7 @@
 module PrefixTree where
 
 import Data.IP
-import Prefixes
+import MRTPrefixes
 import qualified Overlap
 
 newtype PrefixTree a = PrefixTree (Overlap.Tree a) deriving Eq
