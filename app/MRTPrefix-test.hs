@@ -15,7 +15,7 @@ main = do
         putStrLn "no RIB records found in file"
     else do
         putStr $ show (sum $ map length mrtss) ++ " raw records read "
-        let ribV4FilteredMrtss = map filterRIBIPV4UnicastOrPeerTable mrtss
+        let ribV4FilteredMrtss = map (filter filterRIBIPV4UnicastOrPeerTable) mrtss
         putStr $ show (sum $ map length ribV4FilteredMrtss) ++ " ribv4 filtered records read "
         let bogonFilteredMrtss = map mrtBogonFilter mrtss
         putStr $ show (sum $ map length bogonFilteredMrtss) ++ " bogon filtered records read "

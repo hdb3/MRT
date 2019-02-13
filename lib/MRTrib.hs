@@ -3,6 +3,7 @@ module MRTrib ( module MRTlib
               , prefixCountRouteMap,pathCountRouteMap,statsRouteMap,showStatsRouteMap
               , getMRTRibV4,getMRTRibV6,showMRTRibV4,showMRTRibV6
               , getMRTRibs
+              , getMRTRibsV6
               , Peer, MRTRib,Rib
               , RouteMapv4,RouteMapv6
               , MRTRibV4,MRTRibV6
@@ -114,6 +115,9 @@ getMRTRibV4 = map (\(a,(b,c))->(a,b,c)) . assocs . getIPv4PeerTable . getPeerTab
 
 getMRTRibs :: [[MRTRecord]] -> MRTRibV4
 getMRTRibs = concatRibs . map getMRTRibV4
+
+getMRTRibsV6 :: [[MRTRecord]] -> MRTRibV6
+getMRTRibsV6 = concatRibs . map getMRTRibV6
 
 getMRTRibV6 :: [MRTRecord] -> MRTRibV6
 getMRTRibV6 = map (\(a,(b,c))->(a,b,c)) . assocs . getIPv6PeerTable . getPeerTable
