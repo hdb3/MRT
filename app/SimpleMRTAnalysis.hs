@@ -30,7 +30,6 @@ main = do
         groupMetrics ipv4PeerTable
         extendedMetrics ipv4PeerTable
 
-doRIBv4 :: MRTRibV4 -> IO ()
 doRIBv4 ribDB = do
         comparePeerStats ribDB
         putStrLn $ showMRTRibV4 ribDB
@@ -40,7 +39,6 @@ doRIBv4 ribDB = do
         putStrLn $ showMRTRibV4 v4table
         putStrLn $ showMetrics v4table
 
-doRIBv6 :: MRTRibV4 -> IO ()
 doRIBv6 ribDB6 = do
         comparePeerStats ribDB6
         putStrLn $ showMRTRibV6 ribDB6

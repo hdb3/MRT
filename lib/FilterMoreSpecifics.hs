@@ -27,17 +27,17 @@ filterRIBIPV4Unicast RIBIPV4Unicast{..} = True
 filterRIBIPV4Unicast _ = False
 
 filterSlash32 :: CustomFilter
-filterSlash32 RIBIPV4Unicast{..} | 32 == re4Length = True
-filterSlash32 _ = False
+filterSlash32 RIBIPV4Unicast{..} = 32 == re4Length
+filterSlash32 _ = True
 
 filterSlash25to31 :: CustomFilter
-filterSlash25to31 RIBIPV4Unicast{..} | (24 < re4Length) && ( 32 > re4Length) = True
-filterSlash25to31 _ = False
+filterSlash25to31 RIBIPV4Unicast{..} = (24 < re4Length) && ( 32 > re4Length)
+filterSlash25to31 _ = True
 
 filterSlash25 :: CustomFilter
-filterSlash25 RIBIPV4Unicast{..} = (24 < re4Length)
+filterSlash25 RIBIPV4Unicast{..} = (25 > re4Length)
 --filterSlash25 RIBIPV4Unicast{..} | (24 < re4Length) = True
---filterSlash25 _ = False
+filterSlash25 _ = True
 
 filterLS :: [MRTRecord] -> [MRTRecord]
 filterLS = mrtFromTree . mrtToTree
